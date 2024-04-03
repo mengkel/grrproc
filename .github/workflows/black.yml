@@ -14,5 +14,5 @@ jobs:
       - uses: psf/black@stable
         with:
           options: "--check --verbose --line-length=79"
-          src: "./xmlcoll"
+          src: "./grrproc"
           version: "~= 22.0"
