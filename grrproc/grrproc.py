@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 class Handler:
     """A class for handling graph-based r-process calculations.
 
@@ -112,12 +113,12 @@ class Handler:
 
         """
 
-        for key in self.reactions['beta']:
+        for key in self.reactions["beta"]:
             rates = self.net.compute_rates_for_reaction(key, t_9, rho)
             r_map = self.reaction_map[key]
             self.rates["beta"][r_map[1], r_map[2]] = rates[0]
 
-        for key in self.reactions['ncap']:
+        for key in self.reactions["ncap"]:
             rates = self.net.compute_rates_for_reaction(key, t_9, rho)
             r_map = self.reaction_map[key]
             self.rates["ncap"][r_map[1], r_map[2]] = rates[0] * rho
