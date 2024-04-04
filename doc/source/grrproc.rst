@@ -6,10 +6,7 @@ grrproc package
    :undoc-members:
    :show-inheritance:
 
-grrproc.grrproc module
-----------------------
-
-.. automodule:: grrproc.grrproc
+.. automodule:: grrproc.core
    :members:
    :undoc-members:
    :show-inheritance:

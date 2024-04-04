@@ -4,3 +4,4 @@ theory.
 """
 import os
 from grrproc import *
+from grrproc.core import *

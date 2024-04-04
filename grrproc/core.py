@@ -3,7 +3,7 @@
 import numpy as np
 
 
-class Handler:
+class GrRproc:
     """A class for handling graph-based r-process calculations.
 
     Args:
