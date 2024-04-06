@@ -1,5 +1,6 @@
 """A module for the graphical r process."""
 
+import math
 import numpy as np
 
 
@@ -77,12 +78,15 @@ class GrRproc:
         lims["min_n"] = {}
         lims["max_n"] = {}
 
+        lims["z_min"] = math.inf
         lims["z_max"] = 0
         lims["n_max"] = 0
 
         for value in nucs.values():
             _z = value["z"]
             _n = value["n"]
+            if _z < lims["z_min"] and _z != 0:
+                lims["z_min"] = _z
             if _z > lims["z_max"]:
                 lims["z_max"] = _z
             if _n > lims["n_max"]:
@@ -99,6 +103,36 @@ class GrRproc:
                 lims["max_n"][_z] = _n
 
         return lims
+
+    def get_z_lims(self):
+        """Method to return the smallest and largest atomic numbers in the
+        network.
+
+        Returns:
+            :obj:`tuple`: A tuple of two :obj:`int` objects.  The first element
+            is the smallest atomic number present in the network (other than
+            that for the neutron) and the second element is the largest
+            atomic number.
+
+        """
+
+        return (self.lims["z_min"], self.lims["z_max"])
+
+    def get_n_lims(self, z_c):
+        """Method to return the smallest and largest neutron number in
+        an isotopic chain in the network.
+
+        Args:
+            ``z_c`` (:obj:`int`): The atomic number giving the isotopic chain.
+
+        Returns:
+            :obj:`tuple`: A tuple whose first element is the smallest neutron
+            number in the isotopic chain and whose second element is the
+            largest neutron number in the isotopic chain.
+
+        """
+
+        return (self.lims["min_n"][z_c], self.lims["max_n"][z_c])
 
     def update_rates(self, t_9, rho):
         """Method to update the network reactions.
