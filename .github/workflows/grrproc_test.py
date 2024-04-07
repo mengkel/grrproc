@@ -1,57 +1,45 @@
 import requests, io
-import xmlcoll.coll as xc
+import wnnet.net as wn
+import grrproc as grp
+import numpy as np
+from numpy import linalg as LA
 
-
-def get_collection(xpath=""):
-    coll = xc.Collection()
-    coll.update_from_xml(
-        io.BytesIO(requests.get("https://osf.io/k5c9m/download").content),
-        xpath=xpath,
+def get_net(nuc_xpath="", reac_xpath=""):
+    return wn.Net(
+        io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
+        nuc_xpath=nuc_xpath,
+        reac_xpath=reac_xpath
     )
-    return coll
+
+def test_grrproc():
+    nuc_xpath = "[(a = 1) or (z >= 26 and z <= 40)]"
+    reac_xpath = "[(reactant = 'n' and product = 'gamma') or (count(reactant) = 1 and product = 'electron' and not(reactant = 'n'))]"
+
+    net = get_net(nuc_xpath=nuc_xpath, reac_xpath=reac_xpath)
+
+    r = grp.GrRproc(net)
+
+    t9 = 2.0
+    rho = 1.0e5
+    y_n = 6.5e-1
+    d_t = 1.e-10
+
+    z_min, z_max = r.get_z_lims()
+    n_min, n_max = r.get_n_lims(z_max)
+    y0 = np.zeros([z_max + 1, n_max + 1])
+
+    z = 26
+    a = 56
+    y0[z, a - z] = (1.0 - y_n) / a
+
+    r.update_rates(t9, rho)
+
+    y_g = r.compute_y(y0, y_n, d_t, method='graph')
+    y_m = r.compute_y(y0, y_n, d_t, method='matrix')
+
+    d_y = y_g - y_m
+
+    assert LA.norm(d_y) < 1.e-10
 
 
-def test_load():
-    coll = get_collection()
-    assert coll.get_properties()["Title"] == "Famous Paintings"
-    assert coll.get_properties()["Original Collator"] == "Brad Meyer"
 
-
-def test_items():
-    coll = get_collection()
-    assert len(coll.get()) > 0
-
-
-def test_item():
-    coll = get_collection()
-    items = coll.get()
-    for item in items:
-        assert item
-        assert items[item]
-        assert items[item].get_properties()
-
-
-def test_xpath():
-    coll = get_collection(
-        xpath="[.//property[@tag1 = 'nationality'] = 'Dutch']"
-    )
-    assert len(coll.get()) > 0
-
-
-def test_write(tmpdir):
-    coll = get_collection()
-    file = tmpdir.join("out.xml")
-    assert not coll.write_to_xml(str(file))
-    assert not coll.validate(str(file))
-
-
-def test_dataframe(tmpdir):
-    coll = get_collection()
-    df = coll.get_dataframe()
-    file1 = tmpdir.join("out.xlsx")
-    assert not df.to_excel(str(file1))
-    df_new = df[["date", "artist_name_last"]]
-    reduced_collection = xc.Collection()
-    assert not reduced_collection.update_from_dataframe(df_new)
-    file2 = tmpdir.join("out2.xml")
-    assert not reduced_collection.write_to_xml(str(file2))
