@@ -85,7 +85,7 @@ class GrRproc:
         for value in nucs.values():
             _z = value["z"]
             _n = value["n"]
-            if _z < lims["z_min"] and _z > 1:
+            if 1 < _z < lims["z_min"]:
                 lims["z_min"] = _z
             if _z > lims["z_max"]:
                 lims["z_max"] = _z
@@ -105,7 +105,7 @@ class GrRproc:
         # Add Z = 1 to lower limit if multiple isotopes
 
         if lims["max_n"][1] and lims["max_n"][1] > 0:
-            lims["z_min"] = 1 
+            lims["z_min"] = 1
 
         return lims
 
@@ -138,7 +138,7 @@ class GrRproc:
 
         z_min, z_max = self.get_z_lims()
 
-        assert z_c >= z_min and z_c <= z_max
+        assert z_min <= z_c <= z_max
 
         return (self.lims["min_n"][z_c], self.lims["max_n"][z_c])
 
@@ -238,13 +238,13 @@ class GrRproc:
 
         return result
 
-    def compute_y_l(self, z_c, y_tilde, y_n, d_t):
+    def compute_y_l(self, z_c, y_0, y_n, d_t):
         """Method to compute the Y_L's.
 
         Args:
             ``z_c`` (:obj:`int`): The atomic number at which to compute F_L.
 
-            ``y_tilde`` (:obj:`numpy.array`): A two-dimensional array giving
+            ``y_0`` (:obj:`numpy.array`): A two-dimensional array giving
             the abundances to be used as input for each *Z* and *N*.
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
@@ -269,12 +269,12 @@ class GrRproc:
         lambda_beta = self.rates["beta"][z_c, :] * d_t
 
         if z_c in self.lims["min_n"]:
-            y_l[self.lims["min_n"][z_c]] = y_tilde[
+            y_l[self.lims["min_n"][z_c]] = y_0[
                 z_c, self.lims["min_n"][z_c]
             ] / (1.0 + lambda_beta[self.lims["min_n"][z_c]])
             for _n in range(self.lims["min_n"][z_c], self.lims["max_n"][z_c]):
                 y_l[_n + 1] = (
-                    (1.0 + lambda_n_prime[_n]) * y_tilde[z_c, _n + 1]
+                    (1.0 + lambda_n_prime[_n]) * y_0[z_c, _n + 1]
                     + lambda_ncap[_n] * y_l[_n]
                 ) / (
                     (1.0 + lambda_beta[_n + 1]) * (1.0 + lambda_n_prime[_n])
@@ -283,13 +283,13 @@ class GrRproc:
 
         return (y_l, f_l)
 
-    def compute_y_u(self, z_c, y_tilde, y_n, d_t):
+    def compute_y_u(self, z_c, y_0, y_n, d_t):
         """Method to compute the Y_U's.
 
         Args:
             ``z_c`` (:obj:`int`): The atomic number at which to compute F_L.
 
-            ``y_tilde`` (:obj:`numpy.array`): A two-dimensional array giving
+            ``y_0`` (:obj:`numpy.array`): A two-dimensional array giving
             the abundances to be used as input for each *Z* and *N*.
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
@@ -315,14 +315,14 @@ class GrRproc:
         lambda_beta = self.rates["beta"][z_c, :] * d_t
 
         if z_c in self.lims["max_n"]:
-            y_u[self.lims["max_n"][z_c]] = y_tilde[
+            y_u[self.lims["max_n"][z_c]] = y_0[
                 z_c, self.lims["max_n"][z_c]
             ] / (1.0 + lambda_beta[self.lims["max_n"][z_c]])
             for _n in range(
                 self.lims["max_n"][z_c], self.lims["min_n"][z_c], -1
             ):
                 y_u[_n - 1] = (
-                    (1.0 + lambda_g_prime[_n]) * y_tilde[z_c, _n - 1]
+                    (1.0 + lambda_g_prime[_n]) * y_0[z_c, _n - 1]
                     + lambda_gamma[_n] * y_u[_n]
                 ) / (
                     (1.0 + lambda_beta[_n - 1]) * (1.0 + lambda_g_prime[_n])
@@ -331,13 +331,13 @@ class GrRproc:
 
         return (y_u, f_u)
 
-    def compute_r(self, z_c, y_tilde, y_n, d_t):
+    def compute_r(self, z_c, y_0, y_n, d_t):
         """Method to compute the R_L's and R_U's.
 
         Args:
             ``z_c`` (:obj:`int`): The atomic number at which to compute F_L.
 
-            ``y_tilde`` (:obj:`numpy.array`): A two-dimensional array giving
+            ``y_0`` (:obj:`numpy.array`): A two-dimensional array giving
             the abundances to be used as input for each *Z* and *N*.
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
@@ -359,8 +359,8 @@ class GrRproc:
         if z_c not in self.lims["max_n"]:
             return (r_l, r_u)
 
-        y_l, f_l = self.compute_y_l(z_c, y_tilde, y_n, d_t)
-        y_u, f_u = self.compute_y_u(z_c, y_tilde, y_n, d_t)
+        y_l, f_l = self.compute_y_l(z_c, y_0, y_n, d_t)
+        y_u, f_u = self.compute_y_u(z_c, y_0, y_n, d_t)
 
         lambda_ncap = self.rates["ncap"][z_c, :] * y_n
         lambda_gamma = self.rates["gamma"][z_c, :]
@@ -374,7 +374,7 @@ class GrRproc:
 
         return (r_l, r_u)
 
-    def compute_y(self, y_t, y_n, d_t):
+    def compute_y(self, y_t, y_n, d_t, method="graph"):
         """Method to compute the Y's.
 
         Args:
@@ -385,23 +385,38 @@ class GrRproc:
 
             ``d_t`` (:obj:`float`): The time step (in seconds)
 
+            ``method`` (:obj:`string`, optional): Keyword to select between
+            solving the isotopic abundances from recursive graph relations
+            (*graph*--the default) or from standard matrix operations
+            (*matrix*).
+
         Returns:
-            :obj:`numpy.array`: A two-dimensional array containing the Y_L's
+            :obj:`numpy.array`: A two-dimensional array containing the Y's
             for each *Z* and *N*.
 
         """
 
+        assert method in ("graph", "matrix")
+
+        if method == "graph":
+            return self._compute_y_with_graph(y_t, y_n, d_t)
+        return self._compute_y_with_matrix(y_t, y_n, d_t)
+
+    def _compute_y_with_graph(self, y_t, y_n, d_t):
         result = np.zeros([self.lims["z_max"] + 1, self.lims["n_max"] + 1])
 
         result[0, 1] = y_n
 
-        y_tilde = y_t.copy()
+        if self.lims["z_min"] > 1:
+            result[1, 0] = y_t[1, 0]
+
+        y_0 = y_t.copy()
 
         for _z in self.z_array:
             if _z in self.lims["min_n"] and _z != 0:
 
-                y_l, f_l = self.compute_y_l(_z, y_tilde, y_n, d_t)
-                y_u, f_u = self.compute_y_u(_z, y_tilde, y_n, d_t)
+                y_l, f_l = self.compute_y_l(_z, y_0, y_n, d_t)
+                y_u, f_u = self.compute_y_u(_z, y_0, y_n, d_t)
 
                 lambda_ncap = self.rates["ncap"][_z, :] * y_n * d_t
                 lambda_n_prime = np.multiply(lambda_ncap, f_l)
@@ -415,7 +430,7 @@ class GrRproc:
                     result[_z, _n] = (
                         (1.0 + lambda_g_prime[_n + 1])
                         * (1.0 + lambda_n_prime[_n - 1])
-                        * y_tilde[_z, _n]
+                        * y_0[_z, _n]
                         + lambda_ncap[_n - 1]
                         * (1.0 + lambda_g_prime[_n + 1])
                         * y_l[_n - 1]
@@ -434,7 +449,7 @@ class GrRproc:
 
                 _n_last = self.lims["max_n"][_z]
                 result[_z, _n_last] = (
-                    (1.0 + lambda_n_prime[_n_last - 1]) * y_tilde[_z, _n_last]
+                    (1.0 + lambda_n_prime[_n_last - 1]) * y_0[_z, _n_last]
                     + lambda_ncap[_n_last - 1] * y_l[_n_last - 1]
                 ) / (
                     (1.0 + lambda_beta[_n_last])
@@ -446,9 +461,86 @@ class GrRproc:
                     d_y = np.multiply(lambda_beta, result[_z, :])
 
                     for _n in range(1, d_y.shape[0]):
-                        y_tilde[_z + 1, _n - 1] += d_y[_n]
+                        y_0[_z + 1, _n - 1] += d_y[_n]
 
         return result
+
+    def _tridiag(self, _a, _b, _c, _d):
+        for i in range(len(_d) - 1):
+            if _a[i + 1] != 0 and _b[i] != 0:
+                fac = -_a[i + 1] / _b[i]
+                _b[i + 1] += fac * _c[i]
+                _d[i + 1] += fac * _d[i]
+
+        sol = np.zeros(len(_d))
+
+        for i in reversed(range(len(_d))):
+            sol[i] = _d[i] / _b[i]
+            if i < len(_d) - 1:
+                sol[i] -= _c[i] * sol[i + 1] / _b[i]
+
+        return sol
+
+    def _compute_y_with_matrix(self, y_0, y_n, d_t):
+        _y = np.zeros([y_0.shape[0], y_0.shape[1]])
+        z_min, z_max = self.get_z_lims()
+
+        rates = self.get_rates()
+
+        for _z in range(z_min, z_max + 1):
+            n_min, n_max = self.get_n_lims(_z)
+            _l = n_max - n_min + 1
+
+            if _z > z_min:
+                n_l_min, n_l_max = self.get_n_lims(_z - 1)
+
+            if _z < z_max:
+                n_u_min, n_u_max = self.get_n_lims(_z + 1)
+
+            _a = np.zeros(_l)
+            _b = np.zeros(_l)
+            _c = np.zeros(_l)
+            _d = np.zeros(_l)
+
+            for i in range(_l):
+                _b[i] = (
+                    1
+                    + rates["ncap"][_z, n_min + i] * y_n * d_t
+                    + rates["gamma"][_z, n_min + i] * d_t
+                )
+                _d[i] = y_0[_z, n_min + i]
+                if i > 0:
+                    _a[i] = -rates["ncap"][_z, n_min + i - 1] * y_n * d_t
+                    if (
+                        (_z < z_max)
+                        and (n_min + i - 1 >= n_u_min)
+                        and (n_min + i - 1 <= n_u_max)
+                    ):
+                        _b[i] += rates["beta"][_z, n_min + i] * d_t
+                if i < _l - 1:
+                    _c[i] = -rates["gamma"][_z, n_min + i + 1] * d_t
+                    if (
+                        (_z > z_min)
+                        and (n_min + i + 1 >= n_l_min)
+                        and (n_min + i + 1 <= n_l_max)
+                    ):
+                        _d[i] += (
+                            rates["beta"][_z - 1, n_min + i + 1]
+                            * _y[_z - 1, n_min + i + 1]
+                            * d_t
+                        )
+
+            sol = self._tridiag(_a, _b, _c, _d)
+
+            for i in range(_l):
+                _y[_z, n_min + i] = sol[i]
+
+            _y[0, 1] = y_n
+
+            if z_min > 1:
+                _y[1, 0] = y_0[1, 0]
+
+        return _y
 
     def compute_dyndt(self, y_current, y_n):
         """Method to compute the rate of change of the free neutron abundance
