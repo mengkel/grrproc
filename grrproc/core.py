@@ -85,7 +85,7 @@ class GrRproc:
         for value in nucs.values():
             _z = value["z"]
             _n = value["n"]
-            if _z < lims["z_min"] and _z != 0:
+            if _z < lims["z_min"] and _z > 1:
                 lims["z_min"] = _z
             if _z > lims["z_max"]:
                 lims["z_max"] = _z
@@ -102,6 +102,11 @@ class GrRproc:
             else:
                 lims["max_n"][_z] = _n
 
+        # Add Z = 1 to lower limit if multiple isotopes
+
+        if lims["max_n"][1] and lims["max_n"][1] > 0:
+            lims["z_min"] = 1 
+
         return lims
 
     def get_z_lims(self):
@@ -110,9 +115,8 @@ class GrRproc:
 
         Returns:
             :obj:`tuple`: A tuple of two :obj:`int` objects.  The first element
-            is the smallest atomic number present in the network (other than
-            that for the neutron) and the second element is the largest
-            atomic number.
+            is the smallest atomic number present in the network (greater than
+            one) and the second element is the largest atomic number.
 
         """
 
@@ -131,6 +135,10 @@ class GrRproc:
             largest neutron number in the isotopic chain.
 
         """
+
+        z_min, z_max = self.get_z_lims()
+
+        assert z_c >= z_min and z_c <= z_max
 
         return (self.lims["min_n"][z_c], self.lims["max_n"][z_c])
 
