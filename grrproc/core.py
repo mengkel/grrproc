@@ -2,22 +2,31 @@
 
 import math
 import numpy as np
+import wnnet.net as wn
 
 
 class GrRproc:
     """A class for handling graph-based r-process calculations.
 
     Args:
-        ``net``: A `wnnet <https://wnnet.readthedocs.io>`_ network object.
+        ``xml_file``: An input xml file.
 
         ``nuc_xpath`` (:obj:`str`, optional): An XPath expression definining the
-        r-process network.
+        r-process network.  Default is all species.
 
     """
 
-    def __init__(self, net, nuc_xpath=""):
-        self.net = net
-        self.nucs = self.net.get_nuclides(nuc_xpath=nuc_xpath)
+    def __init__(self, xml_file, nuc_xpath=""):
+
+        reac_xpath = "[ \
+            (reactant = 'n' and product = 'gamma') or \
+             (count(reactant) = 1 and \
+             product = 'electron' and not(reactant = 'n'))]"
+
+        self.net = wn.Net(xml_file, nuc_xpath=nuc_xpath, reac_xpath=reac_xpath)
+        self.nucs = self.net.get_nuclides()
+
+        assert "n" in self.nucs
 
         self.z_array = []
 
@@ -108,6 +117,16 @@ class GrRproc:
             lims["z_min"] = 1
 
         return lims
+
+    def get_net(self):
+        """Method to return the network.
+
+        Returns:
+            A `wnnet <https://wnnet.readthedocs.io>`_ network object.
+
+        """
+
+        return self.net
 
     def get_z_lims(self):
         """Method to return the smallest and largest atomic numbers in the
