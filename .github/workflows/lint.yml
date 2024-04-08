@@ -17,7 +17,7 @@ jobs:
           python-version: "3.x"
       - name: install dependencies
         run: |
-          pip install pylint numpy
+          pip install pylint numpy wnnet
       - name: run linter
         run: |
           pylint --extension-pkg-whitelist=lxml.etree --fail-under=9.8 grrproc/*.py

@@ -1,5 +1,4 @@
 import requests, io
-import wnnet.net as wn
 import grrproc as grp
 import numpy as np
 from numpy import linalg as LA
