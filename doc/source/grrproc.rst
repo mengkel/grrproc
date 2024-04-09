@@ -6,7 +6,7 @@ grrproc package
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: grrproc.core
+.. automodule:: grrproc.grp
    :members:
    :undoc-members:
    :show-inheritance:

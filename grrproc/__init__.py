@@ -3,4 +3,4 @@ A package of python routines to follow r-process nucleosynthesis with graph
 theory.
 """
 import os
-from .core import *
+from .grp import *
