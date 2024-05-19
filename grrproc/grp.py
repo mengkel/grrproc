@@ -14,9 +14,12 @@ class GrRproc:
         ``nuc_xpath`` (:obj:`str`, optional): An XPath expression definining the
         r-process network.  Default is all species.
 
+        ``n_bdn_max`` (:obj:`int`, optional): Maximum number of emitted
+        beta-delayed neutrons.
+
     """
 
-    def __init__(self, xml_file, nuc_xpath=""):
+    def __init__(self, xml_file, nuc_xpath="", n_bdn_max=3):
 
         reac_xpath = "[ \
             (reactant = 'n' and product = 'gamma') or \
@@ -43,6 +46,8 @@ class GrRproc:
         self.rates = {}
         self.rates["ncap"] = np.zeros(arr)
         self.rates["gamma"] = np.zeros(arr)
+
+        arr.append(n_bdn_max + 1)
         self.rates["beta"] = np.zeros(arr)
 
         self.reactions = {}
@@ -174,10 +179,11 @@ class GrRproc:
 
         """
 
-        for key in self.reactions["beta"]:
+        for key, value in self.reactions["beta"].items():
             rates = self.net.compute_rates_for_reaction(key, t_9, rho)
             r_map = self.reaction_map[key]
-            self.rates["beta"][r_map[1], r_map[2]] = rates[0]
+            n_bdn = value.nuclide_products.count("n")
+            self.rates["beta"][r_map[1], r_map[2], n_bdn] = rates[0]
 
         for key in self.reactions["ncap"]:
             rates = self.net.compute_rates_for_reaction(key, t_9, rho)
@@ -205,7 +211,7 @@ class GrRproc:
 
         lambda_ncap = self.rates["ncap"][z_c, :] * y_n * d_t
         lambda_gamma = self.rates["gamma"][z_c, :] * d_t
-        lambda_beta = self.rates["beta"][z_c, :] * d_t
+        lambda_beta = np.sum(self.rates["beta"][z_c, :, :], axis=1) * d_t
 
         if z_c in self.lims["min_n"]:
             result[self.lims["min_n"][z_c]] = 1 / (
@@ -240,7 +246,7 @@ class GrRproc:
 
         lambda_ncap = self.rates["ncap"][z_c, :] * y_n * d_t
         lambda_gamma = self.rates["gamma"][z_c, :] * d_t
-        lambda_beta = self.rates["beta"][z_c, :] * d_t
+        lambda_beta = np.sum(self.rates["beta"][z_c, :, :], axis=1) * d_t
 
         if z_c in self.lims["max_n"]:
             result[self.lims["max_n"][z_c]] = 1 / (
@@ -285,7 +291,7 @@ class GrRproc:
         lambda_ncap = self.rates["ncap"][z_c, :] * y_n * d_t
         lambda_n_prime = np.multiply(lambda_ncap, f_l)
         lambda_gamma = self.rates["gamma"][z_c, :] * d_t
-        lambda_beta = self.rates["beta"][z_c, :] * d_t
+        lambda_beta = np.sum(self.rates["beta"][z_c, :, :], axis=1) * d_t
 
         if z_c in self.lims["min_n"]:
             y_l[self.lims["min_n"][z_c]] = y_0[
@@ -331,7 +337,7 @@ class GrRproc:
         lambda_ncap = self.rates["ncap"][z_c, :] * y_n * d_t
         lambda_gamma = self.rates["gamma"][z_c, :] * d_t
         lambda_g_prime = np.multiply(lambda_gamma, f_u)
-        lambda_beta = self.rates["beta"][z_c, :] * d_t
+        lambda_beta = np.sum(self.rates["beta"][z_c, :, :], axis=1) * d_t
 
         if z_c in self.lims["max_n"]:
             y_u[self.lims["max_n"][z_c]] = y_0[
@@ -441,7 +447,7 @@ class GrRproc:
                 lambda_n_prime = np.multiply(lambda_ncap, f_l)
                 lambda_gamma = self.rates["gamma"][_z, :] * d_t
                 lambda_g_prime = np.multiply(lambda_gamma, f_u)
-                lambda_beta = self.rates["beta"][_z, :] * d_t
+                lambda_beta = self.rates["beta"][_z, :, :] * d_t
 
                 for _n in range(
                     self.lims["min_n"][_z], self.lims["max_n"][_z]
@@ -457,7 +463,7 @@ class GrRproc:
                         * (1.0 + lambda_n_prime[_n - 1])
                         * y_u[_n + 1]
                     ) / (
-                        (1.0 + lambda_beta[_n])
+                        (1.0 + np.sum(lambda_beta[_n, :]))
                         * (
                             (1.0 + lambda_n_prime[_n - 1])
                             * (1.0 + lambda_g_prime[_n + 1])
@@ -471,16 +477,19 @@ class GrRproc:
                     (1.0 + lambda_n_prime[_n_last - 1]) * y_0[_z, _n_last]
                     + lambda_ncap[_n_last - 1] * y_l[_n_last - 1]
                 ) / (
-                    (1.0 + lambda_beta[_n_last])
+                    (1.0 + np.sum(lambda_beta[_n_last, :]))
                     * (1.0 + lambda_n_prime[_n_last - 1])
                     + lambda_gamma[_n_last]
                 )
 
                 if _z < self.z_array[len(self.z_array) - 1]:
-                    d_y = np.multiply(lambda_beta, result[_z, :])
-
-                    for _n in range(1, d_y.shape[0]):
-                        y_0[_z + 1, _n - 1] += d_y[_n]
+                    for _n in range(len(result[_z, :])):
+                        for n_bdn in range(self.rates["beta"].shape[2]):
+                            if _n + 1 + n_bdn < len(result[_z, :]):
+                                y_0[_z + 1, _n] += (
+                                    lambda_beta[_n + 1 + n_bdn, n_bdn]
+                                    * result[_z, _n + 1 + n_bdn]
+                                )
 
         return result
 
@@ -535,19 +544,22 @@ class GrRproc:
                         and (n_min + i - 1 >= n_u_min)
                         and (n_min + i - 1 <= n_u_max)
                     ):
-                        _b[i] += rates["beta"][_z, n_min + i] * d_t
+                        _b[i] += np.sum(rates["beta"][_z, n_min + i, :]) * d_t
                 if i < _l - 1:
                     _c[i] = -rates["gamma"][_z, n_min + i + 1] * d_t
-                    if (
-                        (_z > z_min)
-                        and (n_min + i + 1 >= n_l_min)
-                        and (n_min + i + 1 <= n_l_max)
-                    ):
-                        _d[i] += (
-                            rates["beta"][_z - 1, n_min + i + 1]
-                            * _y[_z - 1, n_min + i + 1]
-                            * d_t
-                        )
+                    for n_bdn in range(rates["beta"].shape[2]):
+                        if (
+                            (_z > z_min)
+                            and (n_min + i + 1 + n_bdn >= n_l_min)
+                            and (n_min + i + 1 + n_bdn <= n_l_max)
+                        ):
+                            _d[i] += (
+                                rates["beta"][
+                                    _z - 1, n_min + i + 1 + n_bdn, n_bdn
+                                ]
+                                * _y[_z - 1, n_min + i + 1 + n_bdn]
+                                * d_t
+                            )
 
             sol = self._tridiag(_a, _b, _c, _d)
 
@@ -581,6 +593,7 @@ class GrRproc:
 
         lambda_ncap = self.rates["ncap"]
         lambda_gamma = self.rates["gamma"]
+        lambda_beta = self.rates["beta"]
 
         for _z in self.lims["min_n"].keys():
             for _n in range(self.lims["min_n"][_z], self.lims["max_n"][_z]):
@@ -588,6 +601,8 @@ class GrRproc:
                     -lambda_ncap[_z, _n] * y_n * y_current[_z, _n]
                     + lambda_gamma[_z, _n + 1] * y_current[_z, _n + 1]
                 )
+                for n_bdn in range(lambda_beta.shape[2]):
+                    result += n_bdn * lambda_beta[_z, _n, n_bdn]
 
         return result
 
