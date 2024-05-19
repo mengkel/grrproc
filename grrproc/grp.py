@@ -519,6 +519,8 @@ class GrRproc:
             n_min, n_max = self.get_n_lims(_z)
             _l = n_max - n_min + 1
 
+            n_l_min = n_l_max = n_u_min = n_u_max = 0
+
             if _z > z_min:
                 n_l_min, n_l_max = self.get_n_lims(_z - 1)
 
@@ -602,7 +604,9 @@ class GrRproc:
                     + lambda_gamma[_z, _n + 1] * y_current[_z, _n + 1]
                 )
                 for n_bdn in range(lambda_beta.shape[2]):
-                    result += n_bdn * lambda_beta[_z, _n, n_bdn]
+                    result += (
+                        n_bdn * lambda_beta[_z, _n, n_bdn] * y_current[_z, _n]
+                    )
 
         return result
 
