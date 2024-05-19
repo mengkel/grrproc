@@ -46,10 +46,10 @@ class GrRproc:
         self.rates = {}
         self.rates["ncap"] = np.zeros(arr)
         self.rates["gamma"] = np.zeros(arr)
+        self.rates["beta total"] = np.zeros(arr)
 
         arr.append(n_bdn_max + 1)
         self.rates["beta"] = np.zeros(arr)
-        self.rates["beta total"] = np.sum(self.rates["beta"], axis=2)
 
         self.reactions = {}
 
@@ -180,17 +180,19 @@ class GrRproc:
 
         """
 
+        for key in self.reactions["ncap"]:
+            rates = self.net.compute_rates_for_reaction(key, t_9, rho)
+            r_map = self.reaction_map[key]
+            self.rates["ncap"][r_map[1], r_map[2]] = rates[0] * rho
+            self.rates["gamma"][r_map[1], r_map[2] + 1] = rates[1]
+
         for key, value in self.reactions["beta"].items():
             rates = self.net.compute_rates_for_reaction(key, t_9, rho)
             r_map = self.reaction_map[key]
             n_bdn = value.nuclide_products.count("n")
             self.rates["beta"][r_map[1], r_map[2], n_bdn] = rates[0]
 
-        for key in self.reactions["ncap"]:
-            rates = self.net.compute_rates_for_reaction(key, t_9, rho)
-            r_map = self.reaction_map[key]
-            self.rates["ncap"][r_map[1], r_map[2]] = rates[0] * rho
-            self.rates["gamma"][r_map[1], r_map[2] + 1] = rates[1]
+        self.rates["beta total"] = np.sum(self.rates["beta"], axis=2)
 
     def compute_f_l(self, z_c, y_n, d_t):
         """Method to compute the F_L's.
@@ -517,8 +519,6 @@ class GrRproc:
         _y = np.zeros([y_0.shape[0], y_0.shape[1]])
         z_min, z_max = self.get_z_lims()
 
-        rates = self.get_rates()
-
         for _z in range(z_min, z_max + 1):
             n_min, n_max = self.get_n_lims(_z)
             _l = n_max - n_min + 1
@@ -539,28 +539,28 @@ class GrRproc:
             for i in range(_l):
                 _b[i] = (
                     1
-                    + rates["ncap"][_z, n_min + i] * y_n * d_t
-                    + rates["gamma"][_z, n_min + i] * d_t
+                    + self.rates["ncap"][_z, n_min + i] * y_n * d_t
+                    + self.rates["gamma"][_z, n_min + i] * d_t
                 )
                 _d[i] = y_0[_z, n_min + i]
                 if i > 0:
-                    _a[i] = -rates["ncap"][_z, n_min + i - 1] * y_n * d_t
+                    _a[i] = -self.rates["ncap"][_z, n_min + i - 1] * y_n * d_t
                     if (
                         (_z < z_max)
                         and (n_min + i - 1 >= n_u_min)
                         and (n_min + i - 1 <= n_u_max)
                     ):
-                        _b[i] += rates["beta total"][_z, n_min + i] * d_t
+                        _b[i] += self.rates["beta total"][_z, n_min + i] * d_t
                 if i < _l - 1:
-                    _c[i] = -rates["gamma"][_z, n_min + i + 1] * d_t
-                    for n_bdn in range(rates["beta"].shape[2]):
+                    _c[i] = -self.rates["gamma"][_z, n_min + i + 1] * d_t
+                    for n_bdn in range(self.rates["beta"].shape[2]):
                         if (
                             (_z > z_min)
                             and (n_min + i + 1 + n_bdn >= n_l_min)
                             and (n_min + i + 1 + n_bdn <= n_l_max)
                         ):
                             _d[i] += (
-                                rates["beta"][
+                                self.rates["beta"][
                                     _z - 1, n_min + i + 1 + n_bdn, n_bdn
                                 ]
                                 * _y[_z - 1, n_min + i + 1 + n_bdn]
