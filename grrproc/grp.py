@@ -607,6 +607,11 @@ class GrRproc:
                     -lambda_ncap[_z, _n] * y_n * y_current[_z, _n]
                     + lambda_gamma[_z, _n + 1] * y_current[_z, _n + 1]
                 )
+
+        for _z in self.lims["min_n"].keys():
+            for _n in range(
+                self.lims["min_n"][_z], self.lims["max_n"][_z] + 1
+            ):
                 for n_bdn in range(1, lambda_beta.shape[2]):
                     result += (
                         n_bdn * lambda_beta[_z, _n, n_bdn] * y_current[_z, _n]
