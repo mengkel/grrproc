@@ -553,19 +553,20 @@ class GrRproc:
                         _b[i] += self.rates["beta total"][_z, n_min + i] * d_t
                 if i < _l - 1:
                     _c[i] = -self.rates["gamma"][_z, n_min + i + 1] * d_t
-                    for n_bdn in range(self.rates["beta"].shape[2]):
-                        if (
-                            (_z > z_min)
-                            and (n_min + i + 1 + n_bdn >= n_l_min)
-                            and (n_min + i + 1 + n_bdn <= n_l_max)
-                        ):
-                            _d[i] += (
-                                self.rates["beta"][
-                                    _z - 1, n_min + i + 1 + n_bdn, n_bdn
-                                ]
-                                * _y[_z - 1, n_min + i + 1 + n_bdn]
-                                * d_t
-                            )
+
+                for n_bdn in range(self.rates["beta"].shape[2]):
+                    if (
+                        (_z > z_min)
+                        and (n_min + i + 1 + n_bdn >= n_l_min)
+                        and (n_min + i + 1 + n_bdn <= n_l_max)
+                    ):
+                        _d[i] += (
+                            self.rates["beta"][
+                                _z - 1, n_min + i + 1 + n_bdn, n_bdn
+                            ]
+                            * _y[_z - 1, n_min + i + 1 + n_bdn]
+                            * d_t
+                        )
 
             sol = self._tridiag(_a, _b, _c, _d)
 
