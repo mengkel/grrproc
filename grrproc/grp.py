@@ -31,14 +31,6 @@ class GrRproc:
 
         assert "n" in self.nucs
 
-        self.z_array = []
-
-        for key, value in self.nucs.items():
-            if value["z"] not in self.z_array:
-                self.z_array.append(value["z"])
-
-        self.z_array.sort()
-
         self.lims = self._set_limits(self.nucs)
 
         arr = [self.lims["z_max"] + 1, self.lims["n_max"] + 1]
@@ -432,6 +424,43 @@ class GrRproc:
             return self._compute_y_with_graph(y_t, y_n, d_t)
         return self._compute_y_with_matrix(y_t, y_n, d_t)
 
+    def _solve_isotope_chain_with_graph(self, _z, y_0, y_n, d_t):
+        z_result = np.zeros(self.lims["n_max"] + 1)
+        y_l, f_l = self.compute_y_l(_z, y_0, y_n, d_t)
+        y_u, f_u = self.compute_y_u(_z, y_0, y_n, d_t)
+
+        lambda_ncap = self.rates["ncap"][_z, :] * y_n * d_t
+        lambda_n_prime = np.multiply(lambda_ncap, f_l)
+        lambda_gamma = self.rates["gamma"][_z, :] * d_t
+        lambda_g_prime = np.multiply(lambda_gamma, f_u)
+        lambda_beta_total = self.rates["beta total"][_z, :] * d_t
+
+        z_result[self.lims["min_n"][_z]] = y_u[self.lims["min_n"][_z]]
+        z_result[self.lims["max_n"][_z]] = y_l[self.lims["max_n"][_z]]
+
+        for _n in range(self.lims["min_n"][_z] + 1, self.lims["max_n"][_z]):
+            z_result[_n] = (
+                (1.0 + lambda_g_prime[_n + 1])
+                * (1.0 + lambda_n_prime[_n - 1])
+                * y_0[_z, _n]
+                + lambda_ncap[_n - 1]
+                * (1.0 + lambda_g_prime[_n + 1])
+                * y_l[_n - 1]
+                + lambda_gamma[_n + 1]
+                * (1.0 + lambda_n_prime[_n - 1])
+                * y_u[_n + 1]
+            ) / (
+                (1.0 + lambda_beta_total[_n])
+                * (
+                    (1.0 + lambda_n_prime[_n - 1])
+                    * (1.0 + lambda_g_prime[_n + 1])
+                )
+                + lambda_ncap[_n] * (1.0 + lambda_n_prime[_n - 1])
+                + lambda_gamma[_n] * (1.0 + lambda_g_prime[_n + 1])
+            )
+
+        return z_result
+
     def _compute_y_with_graph(self, y_t, y_n, d_t):
         result = np.zeros([self.lims["z_max"] + 1, self.lims["n_max"] + 1])
 
@@ -442,140 +471,101 @@ class GrRproc:
 
         y_0 = y_t.copy()
 
-        for _z in self.z_array:
-            if _z in self.lims["min_n"] and _z != 0:
+        z_min, z_max = self.get_z_lims()
 
-                y_l, f_l = self.compute_y_l(_z, y_0, y_n, d_t)
-                y_u, f_u = self.compute_y_u(_z, y_0, y_n, d_t)
+        for _z in range(z_min, z_max + 1):
+            result[_z, :] = self._solve_isotope_chain_with_graph(
+                _z, y_0, y_n, d_t
+            )
 
-                lambda_ncap = self.rates["ncap"][_z, :] * y_n * d_t
-                lambda_n_prime = np.multiply(lambda_ncap, f_l)
-                lambda_gamma = self.rates["gamma"][_z, :] * d_t
-                lambda_g_prime = np.multiply(lambda_gamma, f_u)
-                lambda_beta = self.rates["beta"][_z, :, :] * d_t
-                lambda_beta_total = self.rates["beta total"][_z, :] * d_t
-
-                for _n in range(
-                    self.lims["min_n"][_z], self.lims["max_n"][_z]
-                ):
-                    result[_z, _n] = (
-                        (1.0 + lambda_g_prime[_n + 1])
-                        * (1.0 + lambda_n_prime[_n - 1])
-                        * y_0[_z, _n]
-                        + lambda_ncap[_n - 1]
-                        * (1.0 + lambda_g_prime[_n + 1])
-                        * y_l[_n - 1]
-                        + lambda_gamma[_n + 1]
-                        * (1.0 + lambda_n_prime[_n - 1])
-                        * y_u[_n + 1]
-                    ) / (
-                        (1.0 + lambda_beta_total[_n])
-                        * (
-                            (1.0 + lambda_n_prime[_n - 1])
-                            * (1.0 + lambda_g_prime[_n + 1])
-                        )
-                        + lambda_ncap[_n] * (1.0 + lambda_n_prime[_n - 1])
-                        + lambda_gamma[_n] * (1.0 + lambda_g_prime[_n + 1])
-                    )
-
-                _n_last = self.lims["max_n"][_z]
-                result[_z, _n_last] = (
-                    (1.0 + lambda_n_prime[_n_last - 1]) * y_0[_z, _n_last]
-                    + lambda_ncap[_n_last - 1] * y_l[_n_last - 1]
-                ) / (
-                    (1.0 + lambda_beta_total[_n_last])
-                    * (1.0 + lambda_n_prime[_n_last - 1])
-                    + lambda_gamma[_n_last]
-                )
-
-                if _z < self.z_array[len(self.z_array) - 1]:
-                    for _n in range(len(result[_z, :])):
-                        for n_bdn in range(lambda_beta.shape[1]):
-                            if _n + 1 + n_bdn < len(result[_z, :]):
-                                y_0[_z + 1, _n] += (
-                                    lambda_beta[_n + 1 + n_bdn, n_bdn]
-                                    * result[_z, _n + 1 + n_bdn]
-                                )
+            if _z < z_max:
+                for _n in range(len(result[_z, :])):
+                    for n_bdn in range(self.rates["beta"].shape[2]):
+                        if _n + 1 + n_bdn < len(result[_z, :]):
+                            y_0[_z + 1, _n] += (
+                                self.rates["beta"][_z, _n + 1 + n_bdn, n_bdn]
+                                * result[_z, _n + 1 + n_bdn]
+                                * d_t
+                            )
 
         return result
 
-    def _tridiag(self, _a, _b, _c, _d):
-        for i in range(len(_d) - 1):
-            if _a[i + 1] != 0 and _b[i] != 0:
-                fac = -_a[i + 1] / _b[i]
-                _b[i + 1] += fac * _c[i]
-                _d[i + 1] += fac * _d[i]
+    def _tridiag(self, a_mat, rhs):
+        for i in range(len(rhs) - 1):
+            if a_mat[0, i + 1] != 0 and a_mat[1, i] != 0:
+                fac = -a_mat[0, i + 1] / a_mat[1, i]
+                a_mat[1, i + 1] += fac * a_mat[2, i]
+                rhs[i + 1] += fac * rhs[i]
 
-        sol = np.zeros(len(_d))
+        sol = np.zeros(len(rhs))
 
-        for i in reversed(range(len(_d))):
-            sol[i] = _d[i] / _b[i]
-            if i < len(_d) - 1:
-                sol[i] -= _c[i] * sol[i + 1] / _b[i]
+        for i in reversed(range(len(rhs))):
+            sol[i] = rhs[i] / a_mat[1, i]
+            if i < len(rhs) - 1:
+                sol[i] -= a_mat[2, i] * sol[i + 1] / a_mat[1, i]
 
         return sol
 
     def _compute_y_with_matrix(self, y_0, y_n, d_t):
         _y = np.zeros([y_0.shape[0], y_0.shape[1]])
-        z_min, z_max = self.get_z_lims()
+        z_tup = self.get_z_lims()
 
-        for _z in range(z_min, z_max + 1):
-            n_min, n_max = self.get_n_lims(_z)
-            _l = n_max - n_min + 1
+        for _z in range(z_tup[0], z_tup[1] + 1):
+            # Find the limits on the isotope chain and the resulting width
 
-            n_l_min = n_l_max = n_u_min = n_u_max = 0
+            n_tup = self.get_n_lims(_z)
+            _l = n_tup[1] - n_tup[0] + 1
 
-            if _z > z_min:
-                n_l_min, n_l_max = self.get_n_lims(_z - 1)
+            # Initialize the tridiagonal matrix and the right-hand-side vector
 
-            if _z < z_max:
-                n_u_min, n_u_max = self.get_n_lims(_z + 1)
+            a_mat = np.zeros([3, _l])
+            rhs = np.zeros(_l)
 
-            _a = np.zeros(_l)
-            _b = np.zeros(_l)
-            _c = np.zeros(_l)
-            _d = np.zeros(_l)
+            # Find the limits on the lower isotope chain
+
+            if _z > z_tup[0]:
+                n_l_tup = self.get_n_lims(_z - 1)
+
+            # Loop on the isotopes
 
             for i in range(_l):
-                _b[i] = (
+                a_mat[1, i] = (
                     1
-                    + self.rates["ncap"][_z, n_min + i] * y_n * d_t
-                    + self.rates["gamma"][_z, n_min + i] * d_t
+                    + self.rates["ncap"][_z, n_tup[0] + i] * y_n * d_t
+                    + self.rates["gamma"][_z, n_tup[0] + i] * d_t
+                    + self.rates["beta total"][_z, n_tup[0] + i] * d_t
                 )
-                _d[i] = y_0[_z, n_min + i]
+                rhs[i] = y_0[_z, n_tup[0] + i]
                 if i > 0:
-                    _a[i] = -self.rates["ncap"][_z, n_min + i - 1] * y_n * d_t
-                    if (
-                        (_z < z_max)
-                        and (n_min + i - 1 >= n_u_min)
-                        and (n_min + i - 1 <= n_u_max)
-                    ):
-                        _b[i] += self.rates["beta total"][_z, n_min + i] * d_t
+                    a_mat[0, i] = (
+                        -self.rates["ncap"][_z, n_tup[0] + i - 1] * y_n * d_t
+                    )
                 if i < _l - 1:
-                    _c[i] = -self.rates["gamma"][_z, n_min + i + 1] * d_t
+                    a_mat[2, i] = (
+                        -self.rates["gamma"][_z, n_tup[0] + i + 1] * d_t
+                    )
 
-                for n_bdn in range(self.rates["beta"].shape[2]):
-                    if (
-                        (_z > z_min)
-                        and (n_min + i + 1 + n_bdn >= n_l_min)
-                        and (n_min + i + 1 + n_bdn <= n_l_max)
-                    ):
-                        _d[i] += (
-                            self.rates["beta"][
-                                _z - 1, n_min + i + 1 + n_bdn, n_bdn
-                            ]
-                            * _y[_z - 1, n_min + i + 1 + n_bdn]
-                            * d_t
-                        )
+                if _z > z_tup[0]:
+                    for n_bdn in range(self.rates["beta"].shape[2]):
+                        if n_tup[0] + i + 1 + n_bdn <= n_l_tup[1]:
+                            rhs[i] += (
+                                self.rates["beta"][
+                                    _z - 1, n_tup[0] + i + 1 + n_bdn, n_bdn
+                                ]
+                                * _y[_z - 1, n_tup[0] + i + 1 + n_bdn]
+                                * d_t
+                            )
 
-            sol = self._tridiag(_a, _b, _c, _d)
+            # Solve the matrix equation and update the abundances
+
+            sol = self._tridiag(a_mat, rhs)
 
             for i in range(_l):
-                _y[_z, n_min + i] = sol[i]
+                _y[_z, n_tup[0] + i] = sol[i]
 
             _y[0, 1] = y_n
 
-            if z_min > 1:
+            if z_tup[0] > 1:
                 _y[1, 0] = y_0[1, 0]
 
         return _y
