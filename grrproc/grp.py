@@ -2,31 +2,24 @@
 
 import math
 import numpy as np
-import wnnet.net as wn
 
 
 class GrRproc:
     """A class for handling graph-based r-process calculations.
 
     Args:
-        ``xml_file``: An input xml file.
-
-        ``nuc_xpath`` (:obj:`str`, optional): An XPath expression definining the
-        r-process network.  Default is all species.
+        ``net``: A wnnet \
+        `network <https://wnnet.readthedocs.io/en/latest/wnnet.html#wnnet.net.Net>`_\
+        object.
 
         ``n_bdn_max`` (:obj:`int`, optional): Maximum number of emitted
         beta-delayed neutrons.
 
     """
 
-    def __init__(self, xml_file, nuc_xpath="", n_bdn_max=3):
+    def __init__(self, net, n_bdn_max=3):
 
-        reac_xpath = "[ \
-            (reactant = 'n' and product = 'gamma') or \
-             (count(reactant) = 1 and \
-             product = 'electron' and not(reactant = 'n'))]"
-
-        self.net = wn.Net(xml_file, nuc_xpath=nuc_xpath, reac_xpath=reac_xpath)
+        self.net = net
         self.nucs = self.net.get_nuclides()
 
         assert "n" in self.nucs
@@ -46,7 +39,6 @@ class GrRproc:
         self.reactions = {}
 
         self.reactions["ncap"] = self.net.get_valid_reactions(
-            nuc_xpath=nuc_xpath,
             reac_xpath="[reactant = 'n' and product = 'gamma']",
         )
 
@@ -67,7 +59,6 @@ class GrRproc:
                     )
 
         self.reactions["beta"] = self.net.get_valid_reactions(
-            nuc_xpath=nuc_xpath,
             reac_xpath="[count(reactant) = 1 and product = 'electron']",
         )
 
@@ -120,7 +111,9 @@ class GrRproc:
         """Method to return the network.
 
         Returns:
-            A `wnnet <https://wnnet.readthedocs.io>`_ network object.
+            A wnnet \
+        `network <https://wnnet.readthedocs.io/en/latest/wnnet.html#wnnet.net.Net>`_\
+        object.
 
         """
 
