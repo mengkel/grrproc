@@ -2,15 +2,18 @@ import requests, io
 import grrproc as grp
 import numpy as np
 from numpy import linalg as LA
+import wnnet as wn
 
 
 def test_grrproc():
     nuc_xpath = "[(a = 1) or (z >= 26 and z <= 40)]"
 
-    r = grp.GrRproc(
+    net = wn.net.Net(
         io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
         nuc_xpath=nuc_xpath,
     )
+
+    r = grp.GrRproc(net)
 
     t9 = 2.0
     rho = 1.0e5
@@ -34,15 +37,17 @@ def test_grrproc():
 
     assert LA.norm(d_y) < 1.0e-10
 
+
 def test_net():
     nuc_xpath = "[(a = 1) or (z >= 26 and z <= 40)]"
 
-    r = grp.GrRproc(
+    net = wn.net.Net(
         io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
         nuc_xpath=nuc_xpath,
     )
 
+    r = grp.GrRproc(net)
+
     assert len(r.get_net().get_nuclides()) > 0
 
     assert len(r.get_net().get_reactions()) > 0
-
