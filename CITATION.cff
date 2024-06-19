@@ -3,12 +3,12 @@ message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Li"
   given-names: "Mengke"
-  orcid: "https://orcid.org/0000-0001-XXXX-XXXX"
+  orcid: "https://orcid.org/0000-0002-6373-7494"
 - family-names: "Meyer"
   given-names: "Bradley Stewart"
   orcid: "https://orcid.org/0000-0001-6307-9818"
 title: "grrproc"
 version: 1.0.0
-doi: 10.5281/zenodo.10460076
+doi: 10.5281/zenodo.12173989
 date-released: 2024-06-20
 url: "https://github.com/mengkel/grrproc"
