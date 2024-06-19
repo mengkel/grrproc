@@ -52,11 +52,11 @@ The project is licensed under the GNU Public License v3 (or later).
 .. |doc_stat| image:: https://readthedocs.org/projects/grrproc/badge/?version=latest
     :target: https://grrproc.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
-.. |test| image:: https://github.com/mengkel/grrproc/actions/workflows/test.yml/badge.svg?branch=develop&event=push
+.. |test| image:: https://github.com/mengkel/grrproc/actions/workflows/test.yml/badge.svg?branch=main&event=push
         :target: https://github.com/mengkel/grrproc/actions/workflows/test.yml
 .. |lint| image:: https://img.shields.io/badge/linting-pylint-yellowgreen
     :target: https://github.com/pylint-dev/pylint
-.. |lint-test| image:: https://github.com/mengkel/grrproc/actions/workflows/lint.yml/badge.svg?branch=develop&event=push
+.. |lint-test| image:: https://github.com/mengkel/grrproc/actions/workflows/lint.yml/badge.svg?branch=main&event=push
         :target: https://github.com/mengkel/grrproc/actions/workflows/lint.yml 
 .. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
