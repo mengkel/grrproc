@@ -17,12 +17,6 @@ typing in your favorite terminal::
 
     $ pip install grrproc
 
-Usage
------
-
-To get familiar with grrproc, please see the tutorial Jupyter
-`notebook <https://github.com/mengkel/grrproc_tutorial>`_.
-
 Authors
 -------
 
