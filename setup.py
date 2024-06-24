@@ -43,7 +43,7 @@ setup(
     long_description_content_type="text/x-rst",  # Optional (see note above)
     url="https://github.com/mengkel/grrproc",  # Optional
     author="Clemson University",  # Optional
-    author_email="mengkel@clemson.edu",  # Optional
+    author_email="mengkel@g.clemson.edu",  # Optional
     license="GPLv3+",
     # For a list of valid classifiers, see https://pypi.org/classifiers/
     classifiers=[  # Optional
@@ -51,12 +51,10 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        "Development Status :: 5 - Production/Stable",
+        "Development Status :: 4 - Beta",
         # Indicate who your project is intended for
-        "Intended Audience :: Information Technology",
-        "Intended Audience :: End Users/Desktop",
-        "Topic :: Database",
-        "Topic :: Text Processing :: Markup :: XML",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Astronomy",
         # Pick your license as you wish
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         # Specify the Python versions you support here. In particular, ensure
@@ -67,7 +65,7 @@ setup(
     # project page. What does your project relate to?
     #
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords="data xml database collection",  # Optional
+    keywords="nuclear physics astronomy",  # Optional
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
     #
@@ -84,7 +82,7 @@ setup(
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=["lxml", "pandas"],  # Optional
+    install_requires=["wnnet"],  # Optional
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
     # syntax, for example:
@@ -93,7 +91,7 @@ setup(
     #
     # Similar to `install_requires` above, these must be valid existing
     # projects.
-    extras_require={"dev": ["check-manifest"], "test": ["coverage"]},  # Optional
+    #extras_require={"dev": ["check-manifest"], "test": ["coverage"]},  # Optional
     # If there are data files included in your packages that need to be
     # installed, specify them here.
     #
