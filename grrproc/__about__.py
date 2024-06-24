@@ -1,6 +1,7 @@
 """
 A package of python routines to apply graph theory to r-process nucleosynthesis.
 """
+
 __all__ = [
     "__title__",
     "__summary__",
