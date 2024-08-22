@@ -71,6 +71,8 @@ class GrRproc:
                     self.nucs[reactant]["n"],
                 )
 
+        # Initialize the rates at t9=1, rho=1
+
         self.update_rates(1.0, 1.0)
 
     def _set_limits(self, nucs):
@@ -633,7 +635,7 @@ class GrRproc:
             ``d_t`` (:obj:`float`): The time step (in seconds)
 
         Results:
-            obj:`numpy.array`: A two-dimensional array containing the
+            :obj:`numpy.array`: A two-dimensional array containing the
             beta matrix for the given atomic number.
 
         """
@@ -654,7 +656,7 @@ class GrRproc:
         return result
 
     def compute_m_row(self, z_c, n_c, y_n, d_t):
-        """Method to compute matrix elements for a given species.
+        """Method to compute a row of the contribution matrix.
 
         Args:
             ``z_c`` (:obj:`int`): The atomic number at which to compute
@@ -668,7 +670,7 @@ class GrRproc:
             ``d_t`` (:obj:`float`): The time step (in seconds)
 
         Results:
-            obj:`numpy.array`: A one-dimensional array containing the M's
+            :obj:`numpy.array`: A one-dimensional array containing the M's
             for the given species.
 
         """
@@ -728,7 +730,7 @@ class GrRproc:
         return result
 
     def compute_m(self, z_c, y_n, d_t):
-        """Method to compute matrix elements for a given species.
+        """Method to compute the contribution matrix for a given atomic number.
 
         Args:
             ``z_c`` (:obj:`int`): The atomic number at which to compute
@@ -739,7 +741,7 @@ class GrRproc:
             ``d_t`` (:obj:`float`): The time step (in seconds)
 
         Results:
-            obj:`numpy.array`: A two-dimensional array containing the M
+            :obj:`numpy.array`: A two-dimensional array containing the M
             matrix for the given atomic number.
 
         """
