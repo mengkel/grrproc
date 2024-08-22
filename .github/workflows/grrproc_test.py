@@ -51,3 +51,31 @@ def test_net():
     assert len(r.get_net().get_nuclides()) > 0
 
     assert len(r.get_net().get_reactions()) > 0
+
+def test_beta():
+    nuc_xpath = "[(a = 1) or (z >= 26 and z <= 40)]"
+
+    net = wn.net.Net(
+        io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
+        nuc_xpath=nuc_xpath,
+    )
+
+    r = grp.GrRproc(net)
+
+    Lambda = r.compute_beta_matrix(30, 1.)
+
+    assert np.any(Lambda)
+
+def test_m():
+    nuc_xpath = "[(a = 1) or (z >= 26 and z <= 40)]"
+
+    net = wn.net.Net(
+        io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
+        nuc_xpath=nuc_xpath,
+    )
+
+    r = grp.GrRproc(net)
+
+    M = r.compute_m(30, 1., 1.)
+
+    assert np.any(M)

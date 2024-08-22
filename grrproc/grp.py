@@ -71,6 +71,8 @@ class GrRproc:
                     self.nucs[reactant]["n"],
                 )
 
+        self.update_rates(1.0, 1.0)
+
     def _set_limits(self, nucs):
         lims = {}
         lims["min_n"] = {}
@@ -146,9 +148,7 @@ class GrRproc:
 
         """
 
-        z_min, z_max = self.get_z_lims()
-
-        assert z_min <= z_c <= z_max
+        assert self._check_z_lims(z_c)
 
         return (self.lims["min_n"][z_c], self.lims["max_n"][z_c])
 
@@ -615,3 +615,154 @@ class GrRproc:
         """
 
         return self.rates
+
+    def compute_beta_matrix(self, z_c, d_t):
+        """Method to compute the beta matrix for a given Z.
+
+        Args:
+            ``z_c`` (:obj:`int`): The atomic number at which to compute
+            the beta matrix.  The beta matrix element
+            :math:`(N - 1 - j, N)`
+            has value :math:`\\lambda_{\\beta j}(Z, N)\\Delta t`, where
+            :math:`N` is the neutron number of the decaying species,
+            :math:`j` is the number of delayed neutrons emitted in the
+            decay, and :math:`\\Delta t` is the time step.
+            Thus, :math:`(Z + 1, N - 1 - j)` is the daughter of the decay
+            :math:`(Z, N)`.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds)
+
+        Results:
+            obj:`numpy.array`: A two-dimensional array containing the
+            beta matrix for the given atomic number.
+
+        """
+
+        assert self._check_z_lims(z_c)
+
+        n_lim = self.lims["n_max"] + 1
+        result = np.zeros((n_lim, n_lim))
+
+        lambda_beta = self.rates["beta"][z_c, :, :]
+
+        for _n in range(lambda_beta.shape[0]):
+            for n_bdn in range(lambda_beta.shape[1]):
+                n_d = _n - 1 - n_bdn
+                if n_d >= 0:
+                    result[n_d, _n] = lambda_beta[_n, n_bdn] * d_t
+
+        return result
+
+    def compute_m_row(self, z_c, n_c, y_n, d_t):
+        """Method to compute matrix elements for a given species.
+
+        Args:
+            ``z_c`` (:obj:`int`): The atomic number at which to compute
+            the relative contribution from its neighbors M.
+
+            ``n_c`` (:obj:`int`): The neutron number at which to compute
+            the relative contribution from its neighbors M.
+
+            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds)
+
+        Results:
+            obj:`numpy.array`: A one-dimensional array containing the M's
+            for the given species.
+
+        """
+
+        assert self._check_lims(z_c, n_c)
+
+        result = np.zeros(self.lims["n_max"] + 1)
+
+        f_u = self.compute_f_u(z_c, y_n, d_t)
+        f_l = self.compute_f_l(z_c, y_n, d_t)
+
+        lambda_ncap = self.rates["ncap"][z_c, :] * y_n
+        lambda_gamma = self.rates["gamma"][z_c, :]
+        lambda_n_prime = np.multiply(lambda_ncap, f_l)
+        lambda_g_prime = np.multiply(lambda_gamma, f_u)
+
+        if n_c == 0:
+            result[n_c] = ((1 + lambda_g_prime[n_c + 1] * d_t)) / (
+                (1 + self.rates["beta total"][z_c, n_c] * d_t)
+                * (1 + lambda_g_prime[n_c + 1] * d_t)
+                + lambda_gamma[n_c] * d_t * (1 + lambda_g_prime[n_c + 1] * d_t)
+                + lambda_ncap[n_c] * d_t
+            )
+
+        elif n_c == self.lims["n_max"]:
+            result[n_c] = ((1 + lambda_n_prime[n_c - 1] * d_t)) / (
+                (1 + self.rates["beta total"][z_c, n_c] * d_t)
+                * (1 + lambda_n_prime[n_c - 1] * d_t)
+                + lambda_gamma[n_c] * d_t
+                + lambda_ncap[n_c] * d_t * (1 + lambda_n_prime[n_c - 1] * d_t)
+            )
+
+        else:
+            result[n_c] = (
+                (1 + lambda_n_prime[n_c - 1] * d_t)
+                * (1 + lambda_g_prime[n_c + 1] * d_t)
+            ) / (
+                (1 + self.rates["beta total"][z_c, n_c] * d_t)
+                * (1 + lambda_n_prime[n_c - 1] * d_t)
+                * (1 + lambda_g_prime[n_c + 1] * d_t)
+                + lambda_gamma[n_c] * d_t * (1 + lambda_g_prime[n_c + 1] * d_t)
+                + lambda_ncap[n_c] * d_t * (1 + lambda_n_prime[n_c - 1] * d_t)
+            )
+
+        n_l, n_u = self.get_n_lims(z_c)
+
+        for _n in range(n_c - 1, n_l - 1, -1):
+            result[_n] = result[_n + 1] * (
+                lambda_n_prime[_n] * d_t / (1 + lambda_n_prime[_n] * d_t)
+            )
+
+        for _n in range(n_c + 1, n_u + 1):
+            result[_n] = result[_n - 1] * (
+                lambda_g_prime[_n] * d_t / (1 + lambda_g_prime[_n] * d_t)
+            )
+
+        return result
+
+    def compute_m(self, z_c, y_n, d_t):
+        """Method to compute matrix elements for a given species.
+
+        Args:
+            ``z_c`` (:obj:`int`): The atomic number at which to compute
+            the M matrix.
+
+            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds)
+
+        Results:
+            obj:`numpy.array`: A two-dimensional array containing the M
+            matrix for the given atomic number.
+
+        """
+
+        assert self._check_z_lims(z_c)
+
+        n_lims = self.lims["n_max"] + 1
+        result = np.zeros((n_lims, n_lims))
+
+        n_l, n_u = self.get_n_lims(z_c)
+
+        for _n in range(n_l, n_u + 1):
+            result[_n, :] = self.compute_m_row(z_c, _n, y_n, d_t)
+
+        return result
+
+    def _check_lims(self, z_c, n_c):
+
+        n_lim = self.lims["n_max"] + 1
+
+        return self._check_z_lims(z_c) and (0 <= n_c <= n_lim)
+
+    def _check_z_lims(self, z_c):
+        z_low, z_high = self.get_z_lims()
+
+        return z_low <= z_c <= z_high
