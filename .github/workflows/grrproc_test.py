@@ -67,7 +67,7 @@ def test_beta():
     assert np.any(Lambda)
 
 def test_m():
-    nuc_xpath = "[(a = 1) or (z >= 26 and z <= 40)]"
+    nuc_xpath = "[(a = 1) or (z = 30)]"
 
     net = wn.net.Net(
         io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
@@ -76,6 +76,12 @@ def test_m():
 
     r = grp.GrRproc(net)
 
-    M = r.compute_m(30, 1., 1.)
+    r.update_rates(1., 1.e4)
 
-    assert np.any(M)
+    M = r.compute_m(30, 1.e-4, 1.e-2)
+
+    my_sum = np.sum(M, axis=0)
+
+    eps = 1.e-6
+    for n in range(*r.get_n_lims(30)):
+        assert 1 - eps < my_sum[n] < 1 + eps
