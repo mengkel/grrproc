@@ -12,12 +12,9 @@ class GrRproc:
         `network <https://wnnet.readthedocs.io/en/latest/wnnet.html#wnnet.net.Net>`_\
         object.
 
-        ``n_bdn_max`` (:obj:`int`, optional): Maximum number of emitted
-        beta-delayed neutrons.
-
     """
 
-    def __init__(self, net, n_bdn_max=3):
+    def __init__(self, net):
 
         self.net = net
         self.nucs = self.net.get_nuclides()
@@ -32,9 +29,6 @@ class GrRproc:
         self.rates["ncap"] = np.zeros(arr)
         self.rates["gamma"] = np.zeros(arr)
         self.rates["beta total"] = np.zeros(arr)
-
-        arr.append(n_bdn_max + 1)
-        self.rates["beta"] = np.zeros(arr)
 
         self.reactions = {}
 
@@ -62,6 +56,8 @@ class GrRproc:
             reac_xpath="[count(reactant) = 1 and product = 'electron']",
         )
 
+        n_bdn_max = 0
+
         for key, value in self.reactions["beta"].items():
             reactant = value.nuclide_reactants[0]
             if reactant in self.nucs:
@@ -70,6 +66,12 @@ class GrRproc:
                     self.nucs[reactant]["z"],
                     self.nucs[reactant]["n"],
                 )
+            n_bdn = value.nuclide_products.count("n")
+            if n_bdn > n_bdn_max:
+                n_bdn_max = n_bdn
+
+        arr.append(n_bdn_max + 1)
+        self.rates["beta"] = np.zeros(arr)
 
         # Initialize the rates at t9=1, rho=1
 
