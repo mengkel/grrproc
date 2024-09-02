@@ -14,8 +14,8 @@ New:
 Fix:
 
   * The GrRproc class now automatically detects the maximum number of delayed
-    neutrons, so the n_bdn_max optional keyword has been removed.  This is
-    a backwards incompatible change.
+    neutrons, so the *n_bdn_max* optional keyword has been removed.  This is
+    a backwards-incompatible change.
 
 Version 1.0.1
 -------------
