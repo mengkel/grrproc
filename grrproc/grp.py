@@ -620,27 +620,7 @@ class GrRproc:
 
         return self.rates
 
-    def compute_beta_matrix(self, z_c, d_t):
-        """Method to compute the beta matrix for a given Z.
-
-        Args:
-            ``z_c`` (:obj:`int`): The atomic number at which to compute
-            the beta matrix.  The beta matrix element
-            :math:`(N - 1 - j, N)`
-            has value :math:`\\lambda_{\\beta j}(Z, N)\\Delta t`, where
-            :math:`N` is the neutron number of the decaying species,
-            :math:`j` is the number of delayed neutrons emitted in the
-            decay, and :math:`\\Delta t` is the time step.
-            Thus, :math:`(Z + 1, N - 1 - j)` is the daughter of the decay
-            :math:`(Z, N)`.
-
-            ``d_t`` (:obj:`float`): The time step (in seconds)
-
-        Results:
-            :obj:`numpy.array`: A two-dimensional array containing the
-            beta matrix for the given atomic number.
-
-        """
+    def _compute_beta_matrix(self, z_c, d_t):
 
         assert self._check_z_lims(z_c)
 
@@ -657,25 +637,7 @@ class GrRproc:
 
         return result
 
-    def compute_m_row(self, z_c, n_c, y_n, d_t):
-        """Method to compute a row of the contribution matrix.
-
-        Args:
-            ``z_c`` (:obj:`int`): The atomic number at which to compute
-            the relative contribution from its neighbors M.
-
-            ``n_c`` (:obj:`int`): The neutron number at which to compute
-            the relative contribution from its neighbors M.
-
-            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
-
-            ``d_t`` (:obj:`float`): The time step (in seconds)
-
-        Results:
-            :obj:`numpy.array`: A one-dimensional array containing the M's
-            for the given species.
-
-        """
+    def _compute_m_row(self, z_c, n_c, y_n, d_t):
 
         assert self._check_lims(z_c, n_c)
 
@@ -731,22 +693,7 @@ class GrRproc:
 
         return result
 
-    def compute_m(self, z_c, y_n, d_t):
-        """Method to compute the contribution matrix for a given atomic number.
-
-        Args:
-            ``z_c`` (:obj:`int`): The atomic number at which to compute
-            the M matrix.
-
-            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
-
-            ``d_t`` (:obj:`float`): The time step (in seconds)
-
-        Results:
-            :obj:`numpy.array`: A two-dimensional array containing the M
-            matrix for the given atomic number.
-
-        """
+    def _compute_m(self, z_c, y_n, d_t):
 
         assert self._check_z_lims(z_c)
 
@@ -756,7 +703,7 @@ class GrRproc:
         n_l, n_u = self.get_n_lims(z_c)
 
         for _n in range(n_l, n_u + 1):
-            result[_n, :] = self.compute_m_row(z_c, _n, y_n, d_t)
+            result[_n, :] = self._compute_m_row(z_c, _n, y_n, d_t)
 
         return result
 
@@ -770,3 +717,93 @@ class GrRproc:
         z_low, z_high = self.get_z_lims()
 
         return z_low <= z_c <= z_high
+
+    def compute_g_up(self, z_c, y_n, d_t, z_upper=None):
+        """Method to compute matrices :math:`G(Z, t + \\Delta t; Z\', t)` for\
+           :math:`Z` greater than or equal to fixed :math:`Z\'`.
+
+        Args:
+            ``z_c`` (:obj:`int`): The fixed atomic number :math:`Z\'`.
+
+            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds)
+
+            ``z_upper`` (:obj:`int`, optional): The upper atomic number
+              :math:`Z \\geq Z\'` to which to compute the :math:`G` matrices.
+
+        Results:
+            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta; Z\', t)`
+            matrices for given :math:`Z\'`.  The key for each entry is
+            :math:`Z`.
+
+        """
+
+        z_l, z_u = self.get_z_lims()
+
+        assert z_c >= z_l
+
+        z_high_lim = z_u
+
+        result = {}
+
+        result[z_c] = self._compute_m(z_c, y_n, d_t)
+
+        if z_upper:
+            assert z_upper <= z_u
+            z_high_lim = z_upper
+
+        for _z in range(z_c, z_high_lim):
+            result[_z + 1] = np.matmul(
+                self._compute_beta_matrix(_z, d_t), result[_z]
+            )
+            result[_z + 1] = np.matmul(
+                self._compute_m(_z + 1, y_n, d_t), result[_z + 1]
+            )
+
+        return result
+
+    def compute_g_down(self, z_c, y_n, d_t, z_lower=None):
+        """Method to compute matrices :math:`G(Z, t + \\Delta t; Z\', t)` for\
+           :math:`Z\'` less than or equal to fixed :math:`Z`.
+
+        Args:
+            ``z_c`` (:obj:`int`): The fixed atomic number :math:`Z`.
+
+            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds)
+
+            ``z_lower`` (:obj:`int`, optional): The lower atomic number
+              :math:`Z\' \\leq Z` to which to compute the :math:`G` matrices.
+
+        Results:
+            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta; Z\', t)`
+            matrices for given :math:`Z`.  The key for each entry is
+            :math:`Z\'`.
+
+        """
+
+        z_l, z_u = self.get_z_lims()
+
+        assert z_c <= z_u
+
+        z_low_lim = z_l
+
+        result = {}
+
+        result[z_c] = self._compute_m(z_c, y_n, d_t)
+
+        if z_lower:
+            assert z_lower >= z_l
+            z_low_lim = z_lower
+
+        for _z in range(z_c, z_low_lim, -1):
+            result[_z - 1] = np.matmul(
+                result[_z], self._compute_beta_matrix(_z - 1, d_t)
+            )
+            result[_z - 1] = np.matmul(
+                result[_z - 1], self._compute_m(_z - 1, y_n, d_t)
+            )
+
+        return result

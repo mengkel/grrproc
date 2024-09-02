@@ -9,7 +9,7 @@ Version 2.0.0
 
 New:
 
-  * Routines to compute contribution and beta-decay matrices have been added.
+  * Routines to compute contribution matrices have been added.
 
 Fix:
 

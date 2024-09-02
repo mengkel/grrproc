@@ -52,22 +52,8 @@ def test_net():
 
     assert len(r.get_net().get_reactions()) > 0
 
-def test_beta():
-    nuc_xpath = "[(a = 1) or (z >= 26 and z <= 40)]"
-
-    net = wn.net.Net(
-        io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
-        nuc_xpath=nuc_xpath,
-    )
-
-    r = grp.GrRproc(net)
-
-    Lambda = r.compute_beta_matrix(30, 1.)
-
-    assert np.any(Lambda)
-
-def test_m():
-    nuc_xpath = "[(a = 1) or (z = 30)]"
+def test_g_up():
+    nuc_xpath = "[(a = 1) or (z >= 26)]"
 
     net = wn.net.Net(
         io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
@@ -78,10 +64,30 @@ def test_m():
 
     r.update_rates(1., 1.e4)
 
-    M = r.compute_m(30, 1.e-4, 1.e-2)
-
-    my_sum = np.sum(M, axis=0)
+    G = r.compute_g_up(26, 1.e-4, 1.e-2)
 
     eps = 1.e-6
-    for n in range(*r.get_n_lims(30)):
-        assert 1 - eps < my_sum[n] < 1 + eps
+    for n in range(*r.get_n_lims(26)):
+        my_sum = 0
+        for z in G:
+            my_sum += np.sum(G[z][:,n], axis=0)
+        assert 1 - eps < my_sum < 1 + eps
+
+def test_g_down():
+    nuc_xpath = "[(a = 1) or (z >= 26)]"
+
+    net = wn.net.Net(
+        io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
+        nuc_xpath=nuc_xpath,
+    )
+
+    r = grp.GrRproc(net)
+
+    r.update_rates(1., 1.e4)
+
+    z_l, z_u = r.get_z_lims()
+
+    G = r.compute_g_down(z_u, 1.e-4, 1.e-2)
+
+    for _z in G:
+        assert np.all(G[_z] >= 0) and np.all(G[_z] <= 1)
