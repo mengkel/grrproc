@@ -733,7 +733,7 @@ class GrRproc:
               :math:`Z \\geq Z\'` to which to compute the :math:`G` matrices.
 
         Results:
-            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta; Z\', t)`
+            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta t; Z\', t)`
             matrices for given :math:`Z\'`.  The key for each entry is
             :math:`Z`.
 
@@ -778,7 +778,7 @@ class GrRproc:
               :math:`Z\' \\leq Z` to which to compute the :math:`G` matrices.
 
         Results:
-            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta; Z\', t)`
+            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta t; Z\', t)`
             matrices for given :math:`Z`.  The key for each entry is
             :math:`Z\'`.
 
