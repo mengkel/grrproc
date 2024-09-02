@@ -191,7 +191,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`numpy.array`: A one-dimensional array containing the F_L's
@@ -226,7 +226,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`numpy.array`: A one-dimensional array containing the F_L's
@@ -266,7 +266,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`tuple`:  The first element of the tuple is a one-dimensional
@@ -312,7 +312,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`tuple`:  The first element of the tuple is a one-dimensional
@@ -361,7 +361,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`tuple`:  The first element of the tuple is a one-dimensional
@@ -402,7 +402,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
             ``method`` (:obj:`string`, optional): Keyword to select between
             solving the isotopic abundances from recursive graph relations
@@ -727,9 +727,9 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
-            ``z_upper`` (:obj:`int`, optional): The upper atomic number
+            ``z_upper`` (:obj:`int`, optional): The upper atomic number\
               :math:`Z \\geq Z\'` to which to compute the :math:`G` matrices.
 
         Results:
@@ -772,9 +772,9 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
-            ``z_lower`` (:obj:`int`, optional): The lower atomic number
+            ``z_lower`` (:obj:`int`, optional): The lower atomic number\
               :math:`Z\' \\leq Z` to which to compute the :math:`G` matrices.
 
         Results:
