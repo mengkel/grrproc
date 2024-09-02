@@ -1,7 +1,17 @@
 """A module for the graphical r process."""
 
+from dataclasses import dataclass
 import math
 import numpy as np
+
+
+@dataclass
+class _MData:
+    ncap: float
+    gamma: float
+    beta_total: float
+    n_prime: float
+    g_prime: float
 
 
 class GrRproc:
@@ -637,50 +647,47 @@ class GrRproc:
 
         return result
 
-    def _compute_m_row(self, z_c, n_c, lambda_dt):
+    def _compute_m_row(self, z_c, n_c, m_data):
 
         assert self._check_lims(z_c, n_c)
 
         result = np.zeros(self.lims["n_max"] + 1)
 
         if n_c == 0:
-            result[n_c] = (1 + lambda_dt["g_prime"][n_c + 1]) / (
-                (1 + lambda_dt["beta total"][n_c])
-                * (1 + lambda_dt["g_prime"][n_c + 1])
-                + lambda_dt["gamma"][n_c] * (1 + lambda_dt["g_prime"][n_c + 1])
-                + lambda_dt["ncap"][n_c]
+            result[n_c] = (1 + m_data.g_prime[n_c + 1]) / (
+                (1 + m_data.beta_total[n_c]) * (1 + m_data.g_prime[n_c + 1])
+                + m_data.gamma[n_c] * (1 + m_data.g_prime[n_c + 1])
+                + m_data.ncap[n_c]
             )
 
         elif n_c == self.lims["n_max"]:
-            result[n_c] = (1 + lambda_dt["n_prime"][n_c - 1]) / (
-                (1 + lambda_dt["beta total"][n_c])
-                * (1 + lambda_dt["n_prime"][n_c - 1])
-                + lambda_dt["gamma"][n_c]
-                + lambda_dt["ncap"][n_c] * (1 + lambda_dt["n_prime"][n_c - 1])
+            result[n_c] = (1 + m_data.n_prime[n_c - 1]) / (
+                (1 + m_data.beta_total[n_c]) * (1 + m_data.n_prime[n_c - 1])
+                + m_data.gamma[n_c]
+                + m_data.ncap[n_c] * (1 + m_data.n_prime[n_c - 1])
             )
 
         else:
             result[n_c] = (
-                (1 + lambda_dt["n_prime"][n_c - 1])
-                * (1 + lambda_dt["g_prime"][n_c + 1])
+                (1 + m_data.n_prime[n_c - 1]) * (1 + m_data.g_prime[n_c + 1])
             ) / (
-                (1 + lambda_dt["beta total"][n_c])
-                * (1 + lambda_dt["n_prime"][n_c - 1])
-                * (1 + lambda_dt["g_prime"][n_c + 1])
-                + lambda_dt["gamma"][n_c] * (1 + lambda_dt["g_prime"][n_c + 1])
-                + lambda_dt["ncap"][n_c] * (1 + lambda_dt["n_prime"][n_c - 1])
+                (1 + m_data.beta_total[n_c])
+                * (1 + m_data.n_prime[n_c - 1])
+                * (1 + m_data.g_prime[n_c + 1])
+                + m_data.gamma[n_c] * (1 + m_data.g_prime[n_c + 1])
+                + m_data.ncap[n_c] * (1 + m_data.n_prime[n_c - 1])
             )
 
         n_l, n_u = self.get_n_lims(z_c)
 
         for _n in range(n_c - 1, n_l - 1, -1):
             result[_n] = result[_n + 1] * (
-                lambda_dt["n_prime"][_n] / (1 + lambda_dt["n_prime"][_n])
+                m_data.n_prime[_n] / (1 + m_data.n_prime[_n])
             )
 
         for _n in range(n_c + 1, n_u + 1):
             result[_n] = result[_n - 1] * (
-                lambda_dt["g_prime"][_n] / (1 + lambda_dt["g_prime"][_n])
+                m_data.g_prime[_n] / (1 + m_data.g_prime[_n])
             )
 
         return result
@@ -692,13 +699,13 @@ class GrRproc:
         f_u = self.compute_f_u(z_c, y_n, d_t)
         f_l = self.compute_f_l(z_c, y_n, d_t)
 
-        lambda_dt = {}
-
-        lambda_dt["ncap"] = self.rates["ncap"][z_c, :] * y_n * d_t
-        lambda_dt["gamma"] = self.rates["gamma"][z_c, :] * d_t
-        lambda_dt["beta total"] = self.rates["beta total"][z_c, :] * d_t
-        lambda_dt["n_prime"] = np.multiply(lambda_dt["ncap"], f_l)
-        lambda_dt["g_prime"] = np.multiply(lambda_dt["gamma"], f_u)
+        m_data = _MData(
+            self.rates["ncap"][z_c, :] * y_n * d_t,
+            self.rates["gamma"][z_c, :] * d_t,
+            self.rates["beta total"][z_c, :] * d_t,
+            np.multiply(self.rates["ncap"][z_c, :] * y_n * d_t, f_l),
+            np.multiply(self.rates["gamma"][z_c, :] * d_t, f_u),
+        )
 
         n_lims = self.lims["n_max"] + 1
         result = np.zeros((n_lims, n_lims))
@@ -706,7 +713,7 @@ class GrRproc:
         n_l, n_u = self.get_n_lims(z_c)
 
         for _n in range(n_l, n_u + 1):
-            result[_n, :] = self._compute_m_row(z_c, _n, lambda_dt)
+            result[_n, :] = self._compute_m_row(z_c, _n, m_data)
 
         return result
 
