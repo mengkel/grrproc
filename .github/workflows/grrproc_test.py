@@ -91,3 +91,26 @@ def test_g_down():
 
     for _z in G:
         assert np.all(G[_z] >= 0) and np.all(G[_z] <= 1)
+
+def test_g_both():
+    nuc_xpath = "[(a = 1) or (z >= 26)]"
+
+    net = wn.net.Net(
+        io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
+        nuc_xpath=nuc_xpath,
+    )
+
+    z_c = 40
+
+    r = grp.GrRproc(net)
+
+    r.update_rates(1., 1.e4)
+
+    G_down = r.compute_g_down(z_c, 1.e-4, 1.e-2, z_lower=z_c)
+    G_up = r.compute_g_up(z_c, 1.e-4, 1.e-2, z_upper=z_c)
+
+    for _z in G_down:
+        assert np.array_equal(G_down[_z], G_up[_z])
+
+    for _z in G_up:
+        assert np.array_equal(G_up[_z], G_down[_z])
