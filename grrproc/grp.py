@@ -622,9 +622,17 @@ class GrRproc:
 
         Returns:
             :obj:`dict`: A dictionary of current rates for valid reactions.
-            The dictionary entries are themselves two-dimensional
+            The dictionary keys are the types of reactions.  Entries with
+            keys *n_cap* (neutron-captures), *gamma* (photodisintegrations),
+            and *beta total* (total beta-decays) are two-dimensional
             :obj:`numpy.array`, each with the given rate type indexed by
-            *Z* and *N*.
+            *Z* and *N*.  Entries with key *beta* are three-dimensional
+            :obj:`numpy.array`, each with the given beta-decay rate indexed
+            by *Z*, *N*, and *j*, where *j* is the number of beta-delayed
+            neutrons emitted in the decay.  The total beta-decay rate for
+            species (*Z*, *N*) is the sum over the beta-decay rates with
+            the different values of *j*.
+
 
         """
 

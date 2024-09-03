@@ -10,6 +10,7 @@ Version 2.0.0
 New:
 
   * Routines to compute contribution matrices have been added.
+  * Further documentation on the rates retrieval method has been added.
 
 Fix:
 
