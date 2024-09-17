@@ -62,9 +62,15 @@ def test_g_up():
 
     r = grp.GrRproc(net)
 
-    r.update_rates(1., 1.e4)
+    t_9 = 1
+    rho = 1.e4
 
-    G = r.compute_g_up(26, 1.e-4, 1.e-2)
+    r.update_rates(t_9, rho)
+
+    y_n = 1.e-4
+    d_t = 1.e-2
+
+    G = r.compute_g_up(26, y_n, d_t)
 
     eps = 1.e-6
     for n in range(*r.get_n_lims(26)):
@@ -83,11 +89,17 @@ def test_g_down():
 
     r = grp.GrRproc(net)
 
-    r.update_rates(1., 1.e4)
+    t_9 = 2
+    rho = 1.e6
+
+    r.update_rates(t_9, rho)
 
     z_l, z_u = r.get_z_lims()
 
-    G = r.compute_g_down(z_u, 1.e-4, 1.e-2)
+    y_n = 1.e-4
+    d_t = 1.e-2
+
+    G = r.compute_g_down(z_u, y_n, d_t)
 
     for _z in G:
         assert np.all(G[_z] >= 0) and np.all(G[_z] <= 1)
@@ -106,11 +118,10 @@ def test_g_both():
 
     r.update_rates(1., 1.e4)
 
-    G_down = r.compute_g_down(z_c, 1.e-4, 1.e-2, z_lower=z_c)
-    G_up = r.compute_g_up(z_c, 1.e-4, 1.e-2, z_upper=z_c)
+    y_n = 1.e-3
+    d_t = 1.e-2
 
-    for _z in G_down:
-        assert np.array_equal(G_down[_z], G_up[_z])
+    G_down = r.compute_g_down(z_c, y_n, d_t, z_lower=z_c)
+    G_up = r.compute_g_up(z_c, y_n, d_t, z_upper=z_c)
 
-    for _z in G_up:
-        assert np.array_equal(G_up[_z], G_down[_z])
+    assert np.array_equal(G_down[z_c], G_up[z_c])
