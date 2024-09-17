@@ -76,9 +76,7 @@ class GrRproc:
                     self.nucs[reactant]["z"],
                     self.nucs[reactant]["n"],
                 )
-            n_bdn = value.nuclide_products.count("n")
-            if n_bdn > n_bdn_max:
-                n_bdn_max = n_bdn
+            n_bdn_max = max(n_bdn_max, value.nuclide_products.count("n"))
 
         arr.append(n_bdn_max + 1)
         self.rates["beta"] = np.zeros(arr)
