@@ -1,7 +1,17 @@
 """A module for the graphical r process."""
 
+from dataclasses import dataclass
 import math
 import numpy as np
+
+
+@dataclass
+class _MData:
+    ncap: float
+    gamma: float
+    beta_total: float
+    n_prime: float
+    g_prime: float
 
 
 class GrRproc:
@@ -12,12 +22,9 @@ class GrRproc:
         `network <https://wnnet.readthedocs.io/en/latest/wnnet.html#wnnet.net.Net>`_\
         object.
 
-        ``n_bdn_max`` (:obj:`int`, optional): Maximum number of emitted
-        beta-delayed neutrons.
-
     """
 
-    def __init__(self, net, n_bdn_max=3):
+    def __init__(self, net):
 
         self.net = net
         self.nucs = self.net.get_nuclides()
@@ -32,9 +39,6 @@ class GrRproc:
         self.rates["ncap"] = np.zeros(arr)
         self.rates["gamma"] = np.zeros(arr)
         self.rates["beta total"] = np.zeros(arr)
-
-        arr.append(n_bdn_max + 1)
-        self.rates["beta"] = np.zeros(arr)
 
         self.reactions = {}
 
@@ -62,6 +66,8 @@ class GrRproc:
             reac_xpath="[count(reactant) = 1 and product = 'electron']",
         )
 
+        n_bdn_max = 0
+
         for key, value in self.reactions["beta"].items():
             reactant = value.nuclide_reactants[0]
             if reactant in self.nucs:
@@ -70,6 +76,14 @@ class GrRproc:
                     self.nucs[reactant]["z"],
                     self.nucs[reactant]["n"],
                 )
+            n_bdn_max = max(n_bdn_max, value.nuclide_products.count("n"))
+
+        arr.append(n_bdn_max + 1)
+        self.rates["beta"] = np.zeros(arr)
+
+        # Initialize the rates at t9=1, rho=1
+
+        self.update_rates(1.0, 1.0)
 
     def _set_limits(self, nucs):
         lims = {}
@@ -146,9 +160,7 @@ class GrRproc:
 
         """
 
-        z_min, z_max = self.get_z_lims()
-
-        assert z_min <= z_c <= z_max
+        assert self._check_z_lims(z_c)
 
         return (self.lims["min_n"][z_c], self.lims["max_n"][z_c])
 
@@ -187,7 +199,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`numpy.array`: A one-dimensional array containing the F_L's
@@ -222,7 +234,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`numpy.array`: A one-dimensional array containing the F_L's
@@ -262,7 +274,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`tuple`:  The first element of the tuple is a one-dimensional
@@ -308,7 +320,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`tuple`:  The first element of the tuple is a one-dimensional
@@ -357,7 +369,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
         Returns:
             :obj:`tuple`:  The first element of the tuple is a one-dimensional
@@ -398,7 +410,7 @@ class GrRproc:
 
             ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
 
-            ``d_t`` (:obj:`float`): The time step (in seconds)
+            ``d_t`` (:obj:`float`): The time step (in seconds).
 
             ``method`` (:obj:`string`, optional): Keyword to select between
             solving the isotopic abundances from recursive graph relations
@@ -608,10 +620,206 @@ class GrRproc:
 
         Returns:
             :obj:`dict`: A dictionary of current rates for valid reactions.
-            The dictionary entries are themselves two-dimensional
+            The dictionary keys are the types of reactions.  Entries with
+            keys *n_cap* (neutron-captures), *gamma* (photodisintegrations),
+            and *beta total* (total beta-decays) are two-dimensional
             :obj:`numpy.array`, each with the given rate type indexed by
-            *Z* and *N*.
+            *Z* and *N*.  Entries with key *beta* are three-dimensional
+            :obj:`numpy.array`, each with the given beta-decay rate indexed
+            by *Z*, *N*, and *j*, where *j* is the number of beta-delayed
+            neutrons emitted in the decay.  The total beta-decay rate for
+            species (*Z*, *N*) is the sum over the beta-decay rates with
+            the different values of *j*.
+
 
         """
 
         return self.rates
+
+    def _compute_beta_matrix(self, z_c, d_t):
+
+        assert self._check_z_lims(z_c)
+
+        n_lim = self.lims["n_max"] + 1
+        result = np.zeros((n_lim, n_lim))
+
+        lambda_beta = self.rates["beta"][z_c, :, :]
+
+        for _n in range(lambda_beta.shape[0]):
+            for n_bdn in range(lambda_beta.shape[1]):
+                n_d = _n - 1 - n_bdn
+                if n_d >= 0:
+                    result[n_d, _n] = lambda_beta[_n, n_bdn] * d_t
+
+        return result
+
+    def _compute_m_row(self, z_c, n_c, m_data):
+
+        assert self._check_lims(z_c, n_c)
+
+        result = np.zeros(self.lims["n_max"] + 1)
+
+        if n_c == 0:
+            result[n_c] = (1 + m_data.g_prime[n_c + 1]) / (
+                (1 + m_data.beta_total[n_c]) * (1 + m_data.g_prime[n_c + 1])
+                + m_data.gamma[n_c] * (1 + m_data.g_prime[n_c + 1])
+                + m_data.ncap[n_c]
+            )
+
+        elif n_c == self.lims["n_max"]:
+            result[n_c] = (1 + m_data.n_prime[n_c - 1]) / (
+                (1 + m_data.beta_total[n_c]) * (1 + m_data.n_prime[n_c - 1])
+                + m_data.gamma[n_c]
+                + m_data.ncap[n_c] * (1 + m_data.n_prime[n_c - 1])
+            )
+
+        else:
+            result[n_c] = (
+                (1 + m_data.n_prime[n_c - 1]) * (1 + m_data.g_prime[n_c + 1])
+            ) / (
+                (1 + m_data.beta_total[n_c])
+                * (1 + m_data.n_prime[n_c - 1])
+                * (1 + m_data.g_prime[n_c + 1])
+                + m_data.gamma[n_c] * (1 + m_data.g_prime[n_c + 1])
+                + m_data.ncap[n_c] * (1 + m_data.n_prime[n_c - 1])
+            )
+
+        n_l, n_u = self.get_n_lims(z_c)
+
+        for _n in range(n_c - 1, n_l - 1, -1):
+            result[_n] = result[_n + 1] * (
+                m_data.n_prime[_n] / (1 + m_data.n_prime[_n])
+            )
+
+        for _n in range(n_c + 1, n_u + 1):
+            result[_n] = result[_n - 1] * (
+                m_data.g_prime[_n] / (1 + m_data.g_prime[_n])
+            )
+
+        return result
+
+    def _compute_m(self, z_c, y_n, d_t):
+
+        assert self._check_z_lims(z_c)
+
+        f_u = self.compute_f_u(z_c, y_n, d_t)
+        f_l = self.compute_f_l(z_c, y_n, d_t)
+
+        m_data = _MData(
+            self.rates["ncap"][z_c, :] * y_n * d_t,
+            self.rates["gamma"][z_c, :] * d_t,
+            self.rates["beta total"][z_c, :] * d_t,
+            np.multiply(self.rates["ncap"][z_c, :] * y_n * d_t, f_l),
+            np.multiply(self.rates["gamma"][z_c, :] * d_t, f_u),
+        )
+
+        n_lims = self.lims["n_max"] + 1
+        result = np.zeros((n_lims, n_lims))
+
+        n_l, n_u = self.get_n_lims(z_c)
+
+        for _n in range(n_l, n_u + 1):
+            result[_n, :] = self._compute_m_row(z_c, _n, m_data)
+
+        return result
+
+    def _check_lims(self, z_c, n_c):
+
+        n_lim = self.lims["n_max"] + 1
+
+        return self._check_z_lims(z_c) and (0 <= n_c <= n_lim)
+
+    def _check_z_lims(self, z_c):
+        z_low, z_high = self.get_z_lims()
+
+        return z_low <= z_c <= z_high
+
+    def compute_g_up(self, z_c, y_n, d_t, z_upper=None):
+        """Method to compute matrices :math:`G(Z, t + \\Delta t; Z\', t)` for\
+           :math:`Z` greater than or equal to fixed :math:`Z\'`.
+
+        Args:
+            ``z_c`` (:obj:`int`): The fixed atomic number :math:`Z\'`.
+
+            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds).
+
+            ``z_upper`` (:obj:`int`, optional): The upper atomic number\
+              :math:`Z \\geq Z\'` to which to compute the :math:`G` matrices.
+
+        Results:
+            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta t; Z\', t)`
+            matrices for given :math:`Z\'`.  The key for each entry is
+            :math:`Z`.
+
+        """
+
+        z_l, z_u = self.get_z_lims()
+
+        assert z_c >= z_l
+
+        z_high_lim = z_u
+
+        result = {}
+
+        result[z_c] = self._compute_m(z_c, y_n, d_t)
+
+        if z_upper:
+            assert z_upper <= z_u
+            z_high_lim = z_upper
+
+        for _z in range(z_c, z_high_lim):
+            result[_z + 1] = np.matmul(
+                self._compute_beta_matrix(_z, d_t), result[_z]
+            )
+            result[_z + 1] = np.matmul(
+                self._compute_m(_z + 1, y_n, d_t), result[_z + 1]
+            )
+
+        return result
+
+    def compute_g_down(self, z_c, y_n, d_t, z_lower=None):
+        """Method to compute matrices :math:`G(Z, t + \\Delta t; Z\', t)` for\
+           :math:`Z\'` less than or equal to fixed :math:`Z`.
+
+        Args:
+            ``z_c`` (:obj:`int`): The fixed atomic number :math:`Z`.
+
+            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds).
+
+            ``z_lower`` (:obj:`int`, optional): The lower atomic number\
+              :math:`Z\' \\leq Z` to which to compute the :math:`G` matrices.
+
+        Results:
+            :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta t; Z\', t)`
+            matrices for given :math:`Z`.  The key for each entry is
+            :math:`Z\'`.
+
+        """
+
+        z_l, z_u = self.get_z_lims()
+
+        assert z_c <= z_u
+
+        z_low_lim = z_l
+
+        result = {}
+
+        result[z_c] = self._compute_m(z_c, y_n, d_t)
+
+        if z_lower:
+            assert z_lower >= z_l
+            z_low_lim = z_lower
+
+        for _z in range(z_c, z_low_lim, -1):
+            result[_z - 1] = np.matmul(
+                result[_z], self._compute_beta_matrix(_z - 1, d_t)
+            )
+            result[_z - 1] = np.matmul(
+                result[_z - 1], self._compute_m(_z - 1, y_n, d_t)
+            )
+
+        return result
