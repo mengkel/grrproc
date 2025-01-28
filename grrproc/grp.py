@@ -863,9 +863,9 @@ class GrRproc:
                         )
 
     def compute_h(self, y_t, y_n, d_t, nucleon="a"):
-        """Method to compute nucleon number summed matrix \
+        """Method to compute nucleon number summed propagation matrix \
            :math:`H(X, t + \\Delta t; X\', t)` where :math:`X` is \
-           *Z*, *N*, or *A*.  
+           :math:`Z`, :math:`N`, or :math:`A`.
 
         Args:
             ``y_t`` (:obj:`numpy.array`): A two-dimensional array giving
@@ -915,7 +915,7 @@ class GrRproc:
             for z_2 in range(z_min, z_1 + 1):
                 v_m[z_2] = np.matmul(v_m[z_1 + 1], np.matmul(m_b, v_m[z_2]))
             for z_2 in range(z_min, z_1 + 1):
-                g_data.z1 = z_1
+                g_data.z1 = z_1 + 1
                 g_data.z2 = z_2
                 self._update_g_nucleon(v_m[z_2], g_data, nucleon)
 
