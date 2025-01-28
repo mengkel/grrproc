@@ -125,3 +125,33 @@ def test_g_both():
     G_up = r.compute_g_up(z_c, y_n, d_t, z_upper=z_c)
 
     assert np.array_equal(G_down[z_c], G_up[z_c])
+
+def test_h():
+    nuc_xpath = "[(a = 1) or (z >= 26)]"
+
+    net = wn.net.Net(
+        io.BytesIO(requests.get("https://osf.io/kyhbs/download").content),
+        nuc_xpath=nuc_xpath,
+    )
+
+    r = grp.GrRproc(net)
+
+    t_9 = 2
+    rho = 1.e6
+
+    r.update_rates(t_9, rho)
+
+    y_n = 1.e-4
+    d_t = 1.e-2
+
+    z_min, z_max = r.get_z_lims()
+    n_min, n_max = r.get_n_lims(z_max)
+    y0 = np.zeros((z_max + 1, n_max + 1))
+
+    z = 26
+    a = 56
+    y0[z, a - z] = (1.0 - y_n) / a
+
+    G = r.compute_h(y0, y_n, d_t)
+
+    assert np.all(G >= 0) and np.all(G <= 1)

@@ -14,6 +14,14 @@ class _MData:
     g_prime: float
 
 
+@dataclass
+class _GData:
+    z1: int
+    z2: int
+    y_t: np.array
+    y_s: np.array
+
+
 class GrRproc:
     """A class for handling graph-based r-process calculations.
 
@@ -267,7 +275,7 @@ class GrRproc:
         """Method to compute the Y_L's.
 
         Args:
-            ``z_c`` (:obj:`int`): The atomic number at which to compute F_L.
+            ``z_c`` (:obj:`int`): The atomic number at which to compute Y_L.
 
             ``y_0`` (:obj:`numpy.array`): A two-dimensional array giving
             the abundances to be used as input for each *Z* and *N*.
@@ -313,7 +321,7 @@ class GrRproc:
         """Method to compute the Y_U's.
 
         Args:
-            ``z_c`` (:obj:`int`): The atomic number at which to compute F_L.
+            ``z_c`` (:obj:`int`): The atomic number at which to compute Y_U.
 
             ``y_0`` (:obj:`numpy.array`): A two-dimensional array giving
             the abundances to be used as input for each *Z* and *N*.
@@ -748,7 +756,7 @@ class GrRproc:
             ``z_upper`` (:obj:`int`, optional): The upper atomic number\
               :math:`Z \\geq Z\'` to which to compute the :math:`G` matrices.
 
-        Results:
+        Returns:
             :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta t; Z\', t)`
             matrices for given :math:`Z\'`.  The key for each entry is
             :math:`Z`.
@@ -793,7 +801,7 @@ class GrRproc:
             ``z_lower`` (:obj:`int`, optional): The lower atomic number\
               :math:`Z\' \\leq Z` to which to compute the :math:`G` matrices.
 
-        Results:
+        Returns:
             :obj:`dict`: A dictionary of :math:`G(Z, t + \\Delta t; Z\', t)`
             matrices for given :math:`Z`.  The key for each entry is
             :math:`Z\'`.
@@ -821,5 +829,91 @@ class GrRproc:
             result[_z - 1] = np.matmul(
                 result[_z - 1], self._compute_m(_z - 1, y_n, d_t)
             )
+
+        return result
+
+    def _update_g_nucleon(self, g_nucleon, m_tmp, g_data, nucleon):
+        if nucleon == "z":
+            for _n in range(m_tmp.shape[0]):
+                for _np in range(m_tmp.shape[1]):
+                    if g_data.y_s[g_data.z2] > 0:
+                        g_nucleon[g_data.z1, g_data.z2] += (
+                            m_tmp[_n, _np]
+                            * g_data.y_t[g_data.z2, _np]
+                            / g_data.y_s[g_data.z2]
+                        )
+        elif nucleon == "n":
+            for _n in range(m_tmp.shape[0]):
+                for _np in range(m_tmp.shape[1]):
+                    if g_data.y_s[_np] > 0:
+                        g_nucleon[_n, _np] += (
+                            m_tmp[_n, _np]
+                            * g_data.y_t[g_data.z2, _np]
+                            / g_data.y_s[_np]
+                        )
+        else:
+            for _n in range(m_tmp.shape[0]):
+                for _np in range(m_tmp.shape[1]):
+                    if g_data.y_s[g_data.z2 + _np] > 0:
+                        g_nucleon[g_data.z1 + _n, g_data.z2 + _np] += (
+                            m_tmp[_n, _np]
+                            * g_data.y_t[g_data.z2, _np]
+                            / g_data.y_s[g_data.z2 + _np]
+                        )
+
+    def compute_h(self, y_t, y_n, d_t, nucleon="a"):
+        """Method to compute nucleon number summed matrix \
+           :math:`H(X, t + \\Delta t; X\', t)` where :math:`X` is \
+           *Z*, *N*, or *A*.  
+
+        Args:
+            ``y_t`` (:obj:`numpy.array`): A two-dimensional array giving
+            the abundances to be used as input for each *Z* and *N*.
+
+            ``y_n`` (:obj:`float`): The abundance of neutrons per nucleon.
+
+            ``d_t`` (:obj:`float`): The time step (in seconds).
+
+            ``nucleon`` (:obj:`str`, optional): A string giving *z*, *n*, \
+              or *a* to select the nucleon for the matrix.
+
+        Returns:
+            :obj:`numpy.array`: A two-dimensional array giving the propagation \
+            matrix summed over nucleon number.
+
+        """
+
+        assert nucleon in ("z", "n", "a"), "Invalid nucleon."
+
+        z_min, z_max = self.get_z_lims()
+
+        if nucleon == "z":
+            lim = z_max + 1
+            y_s = np.sum(y_t, axis=1)
+        elif nucleon == "n":
+            lim = self.lims["n_max"] + 1
+            y_s = np.sum(y_t, axis=0)
+        else:
+            lim = z_max + self.lims["n_max"] + 2
+            y_s = np.zeros(lim)
+            for i_z in range(y_t.shape[0]):
+                for i_n in range(y_t.shape[1]):
+                    y_s[i_z + i_n] += y_t[i_z, i_n]
+
+        result = np.zeros((lim, lim))
+
+        v_m = {}
+        v_m[z_min] = self._compute_m(z_min, y_n, d_t)
+        g_data = _GData(z_min, z_min, y_t, y_s)
+        self._update_g_nucleon(result, v_m[z_min], g_data, nucleon)
+
+        for z_1 in range(z_min, z_max):
+            m_b = self._compute_beta_matrix(z_1, d_t)
+            v_m[z_1 + 1] = self._compute_m(z_1 + 1, y_n, d_t)
+            for z_2 in range(z_min, z_1 + 1):
+                v_m[z_2] = np.matmul(v_m[z_1 + 1], np.matmul(m_b, v_m[z_2]))
+            for z_2 in range(z_min, z_1 + 1):
+                g_data = _GData(z_1 + 1, z_2, y_t, y_s)
+                self._update_g_nucleon(result, v_m[z_2], g_data, nucleon)
 
         return result

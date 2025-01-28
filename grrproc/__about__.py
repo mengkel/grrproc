@@ -12,6 +12,6 @@ __all__ = [
 
 __title__ = "grrproc"
 __summary__ = "Python project to follow r-process nucleosynthesis graphically."
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __author__ = "Clemson University"
-__copyright__ = "Clemson University, 2024"
+__copyright__ = "Clemson University, 2024-2025"

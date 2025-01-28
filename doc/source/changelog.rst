@@ -4,6 +4,17 @@ Changelog
 All notable changes to this project will be documented in this file.  This
 project adheres to `Semantic Versioning <http://semver.org/spec/v2.0.0.html>`_.
 
+Version 2.1.0
+-------------
+
+New:
+
+  * A routine to compute nucleon matrices has been added.
+
+Fix:
+
+  * Some documentation typos have been fixed.
+
 Version 2.0.0
 -------------
 
