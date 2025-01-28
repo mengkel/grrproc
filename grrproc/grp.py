@@ -20,6 +20,7 @@ class _GData:
     z2: int
     y_t: np.array
     y_s: np.array
+    result: np.array
 
 
 class GrRproc:
@@ -832,12 +833,12 @@ class GrRproc:
 
         return result
 
-    def _update_g_nucleon(self, g_nucleon, m_tmp, g_data, nucleon):
+    def _update_g_nucleon(self, m_tmp, g_data, nucleon):
         if nucleon == "z":
             for _n in range(m_tmp.shape[0]):
                 for _np in range(m_tmp.shape[1]):
                     if g_data.y_s[g_data.z2] > 0:
-                        g_nucleon[g_data.z1, g_data.z2] += (
+                        g_data.result[g_data.z1, g_data.z2] += (
                             m_tmp[_n, _np]
                             * g_data.y_t[g_data.z2, _np]
                             / g_data.y_s[g_data.z2]
@@ -846,7 +847,7 @@ class GrRproc:
             for _n in range(m_tmp.shape[0]):
                 for _np in range(m_tmp.shape[1]):
                     if g_data.y_s[_np] > 0:
-                        g_nucleon[_n, _np] += (
+                        g_data.result[_n, _np] += (
                             m_tmp[_n, _np]
                             * g_data.y_t[g_data.z2, _np]
                             / g_data.y_s[_np]
@@ -855,7 +856,7 @@ class GrRproc:
             for _n in range(m_tmp.shape[0]):
                 for _np in range(m_tmp.shape[1]):
                     if g_data.y_s[g_data.z2 + _np] > 0:
-                        g_nucleon[g_data.z1 + _n, g_data.z2 + _np] += (
+                        g_data.result[g_data.z1 + _n, g_data.z2 + _np] += (
                             m_tmp[_n, _np]
                             * g_data.y_t[g_data.z2, _np]
                             / g_data.y_s[g_data.z2 + _np]
@@ -887,25 +888,26 @@ class GrRproc:
 
         z_min, z_max = self.get_z_lims()
 
+        g_data = _GData(z_min, z_min, y_t, [], [])
+
         if nucleon == "z":
             lim = z_max + 1
-            y_s = np.sum(y_t, axis=1)
+            g_data.y_s = np.sum(y_t, axis=1)
         elif nucleon == "n":
             lim = self.lims["n_max"] + 1
-            y_s = np.sum(y_t, axis=0)
+            g_data.y_s = np.sum(y_t, axis=0)
         else:
             lim = z_max + self.lims["n_max"] + 2
-            y_s = np.zeros(lim)
+            g_data.y_s = np.zeros(lim)
             for i_z in range(y_t.shape[0]):
                 for i_n in range(y_t.shape[1]):
-                    y_s[i_z + i_n] += y_t[i_z, i_n]
+                    g_data.y_s[i_z + i_n] += y_t[i_z, i_n]
 
-        result = np.zeros((lim, lim))
+        g_data.result = np.zeros((lim, lim))
 
         v_m = {}
         v_m[z_min] = self._compute_m(z_min, y_n, d_t)
-        g_data = _GData(z_min, z_min, y_t, y_s)
-        self._update_g_nucleon(result, v_m[z_min], g_data, nucleon)
+        self._update_g_nucleon(v_m[z_min], g_data, nucleon)
 
         for z_1 in range(z_min, z_max):
             m_b = self._compute_beta_matrix(z_1, d_t)
@@ -913,7 +915,8 @@ class GrRproc:
             for z_2 in range(z_min, z_1 + 1):
                 v_m[z_2] = np.matmul(v_m[z_1 + 1], np.matmul(m_b, v_m[z_2]))
             for z_2 in range(z_min, z_1 + 1):
-                g_data = _GData(z_1 + 1, z_2, y_t, y_s)
-                self._update_g_nucleon(result, v_m[z_2], g_data, nucleon)
+                g_data.z1 = z_1
+                g_data.z2 = z_2
+                self._update_g_nucleon(v_m[z_2], g_data, nucleon)
 
-        return result
+        return g_data.result
