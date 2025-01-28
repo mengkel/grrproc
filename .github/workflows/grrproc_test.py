@@ -157,11 +157,11 @@ def test_h():
 
     yn0 = np.sum(y0, axis = 0)
 
-    G = r.compute_h(y0, y_n, d_t, nucleon="n")
+    H = r.compute_h(y0, y_n, d_t, nucleon="n")
 
-    assert np.all(G >= 0) and np.all(G <= 1)
+    assert np.all(H >= 0) and np.all(H <= 1)
 
-    yn1 = np.matmul(G, yn0)
+    yn1 = np.matmul(H, yn0)
 
     y = r.compute_y(y0, y_n, d_t)
 
@@ -175,11 +175,11 @@ def test_h():
 
     yz0 = np.sum(y0, axis = 1)
 
-    G = r.compute_h(y0, y_n, d_t, nucleon="z")
+    H = r.compute_h(y0, y_n, d_t, nucleon="z")
 
-    assert np.all(G >= 0) and np.all(G <= 1)
+    assert np.all(H >= 0) and np.all(H <= 1)
 
-    yz1 = np.matmul(G, yz0)
+    yz1 = np.matmul(H, yz0)
 
     yz2 = np.sum(y, axis=1)
 
@@ -189,19 +189,19 @@ def test_h():
 
     # Check a
 
-    G = r.compute_h(y0, y_n, d_t)
+    H = r.compute_h(y0, y_n, d_t)
 
-    assert np.all(G >= 0) and np.all(G <= 1)
+    assert np.all(H >= 0) and np.all(H <= 1)
 
-    ya0 = np.zeros(G.shape[0])
+    ya0 = np.zeros(H.shape[0])
 
     for row in range(y0.shape[0]):
         for col in range(y0.shape[1]):
             ya0[row + col] += y0[row, col]
 
-    ya1 = np.matmul(G, ya0)
+    ya1 = np.matmul(H, ya0)
 
-    ya2 = np.zeros(G.shape[0])
+    ya2 = np.zeros(H.shape[0])
 
     for row in range(y.shape[0]):
         for col in range(y.shape[1]):
