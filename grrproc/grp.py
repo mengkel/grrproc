@@ -912,6 +912,9 @@ class GrRproc:
         for z_1 in range(z_min, z_max):
             m_b = self._compute_beta_matrix(z_1, d_t)
             v_m[z_1 + 1] = self._compute_m(z_1 + 1, y_n, d_t)
+            g_data.z1 = z_1 + 1
+            g_data.z2 = z_1 + 1
+            self._update_g_nucleon(v_m[z_1 + 1], g_data, nucleon)
             for z_2 in range(z_min, z_1 + 1):
                 v_m[z_2] = np.matmul(v_m[z_1 + 1], np.matmul(m_b, v_m[z_2]))
             for z_2 in range(z_min, z_1 + 1):
