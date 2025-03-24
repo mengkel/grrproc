@@ -23,7 +23,7 @@ with open(path.join(here, "grrproc", "__about__.py")) as f:
     exec(f.read(), about)
 
 # Arguments marked as "Required" below must be included for upload to PyPI.
-# Fields marked as "Optional" may be commented out.
+# Fields marked as "Optional" may be commented out. #
 
 setup(
     name=about["__title__"],  # Required
